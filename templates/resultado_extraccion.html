@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %} — Resultado{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <div class="p-2 rounded-3" style="background:#edfaf3;"><i class="bi bi-check-circle-fill fs-4" style="color:#27ae60;"></i></div>
+    <div><h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Resultado de extracción</h2>
+    <p class="text-muted mb-0 small">{{ resultados|length }} archivo(s) procesado(s)</p></div>
+    <div class="ms-auto d-flex gap-2">
+        <a href="{{ url_for('extraer') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Extraer más</a>
+        <a href="{{ url_for('historial') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-clock-history me-1"></i>Ver historial</a>
+    </div>
+</div>
+
+{% for r in resultados %}
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-file-earmark-pdf text-danger me-2"></i>{{ r.archivo }}</span>
+        {% if r.estado == 'exitoso' %}
+            <span class="badge" style="background:#27ae60;">✓ Exitoso</span>
+        {% elif r.estado == 'revisar' %}
+            <span class="badge" style="background:#f39c12;">⚠ Revisar campos marcados</span>
+        {% else %}
+            <span class="badge" style="background:#e74c3c;">✗ Error: {{ r.error }}</span>
+        {% endif %}
+    </div>
+    {% if r.datos %}
+    <div class="card-body">
+        <div class="row g-3">
+            {% for campo, valor in r.datos.items() %}
+            <div class="col-md-4">
+                <div class="border rounded p-2" style="background:{% if r.confianza and r.confianza[campo] == 'revisar' %}#fef0ef{% elif r.confianza and r.confianza[campo] == 'vacio' %}#f8fafc{% else %}#f8fafc{% endif %};">
+                    <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#8a99a8;margin-bottom:3px;">
+                        {{ campo }}
+                        {% if r.confianza and r.confianza[campo] == 'revisar' %}
+                            <i class="bi bi-exclamation-triangle-fill text-danger ms-1"></i>
+                        {% elif r.confianza and r.confianza[campo] == 'vacio' %}
+                            <i class="bi bi-dash-circle text-muted ms-1"></i>
+                        {% else %}
+                            <i class="bi bi-check-circle-fill text-success ms-1"></i>
+                        {% endif %}
+                    </div>
+                    <div style="font-size:0.875rem;font-weight:500;color:#1a1a2e;word-break:break-word;">
+                        {{ valor or '(vacío)' }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

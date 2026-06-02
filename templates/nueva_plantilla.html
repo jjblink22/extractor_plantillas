@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %} — Nueva Plantilla{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ url_for('lista_plantillas') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Nueva Plantilla</h2>
+</div>
+<div class="row justify-content-center">
+<div class="col-lg-6">
+<div class="card">
+    <div class="card-header"><i class="bi bi-layout-text-sidebar me-2" style="color:#2e86de;"></i>Datos de la plantilla</div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label">Nombre de la plantilla *</label>
+                <input type="text" name="nombre" class="form-control" placeholder="Ej: Comprobante IVA JDE" required autofocus>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Descripción</label>
+                <textarea name="descripcion" class="form-control" rows="2" placeholder="¿Qué tipo de documento extrae esta plantilla?"></textarea>
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Tipo de documento</label>
+                <select name="tipo_documento" class="form-select">
+                    <option value="generico">Genérico</option>
+                    <option value="iva">Comprobante IVA</option>
+                    <option value="islr">Comprobante ISLR</option>
+                    <option value="factura">Factura</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                Después de crear la plantilla, podrás subir un PDF de muestra y definir visualmente las zonas de extracción.
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-arrow-right-circle me-1"></i>Crear y abrir editor
+            </button>
+        </form>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+<!-- plantillas.html -->
+{% extends "base.html" %}
+{% block title %} — Plantillas{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="p-2 rounded-3" style="background:#eef2ff;"><i class="bi bi-layout-text-sidebar fs-4" style="color:#2e86de;"></i></div>
+        <div><h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Plantillas</h2>
+        <p class="text-muted mb-0 small">Gestiona las plantillas de extracción</p></div>
+    </div>
+    <a href="{{ url_for('nueva_plantilla') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nueva plantilla</a>
+</div>
+{% if plantillas %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead><tr><th>Nombre</th><th>Descripción</th><th>Tipo</th><th>Usos</th><th>Creada</th><th></th></tr></thead>
+            <tbody>
+            {% for p in plantillas %}
+            <tr>
+                <td class="fw-semibold" style="color:#1e3a5f;">{{ p.nombre }}</td>
+                <td class="text-muted small">{{ p.descripcion or '—' }}</td>
+                <td><span class="badge" style="background:#eef2ff;color:#2e86de;">{{ p.tipo_documento }}</span></td>
+                <td>{{ p.total_usos }}</td>
+                <td class="text-muted small">{{ p.creado.strftime('%d/%m/%Y') if p.creado else '—' }}</td>
+                <td>
+                    <a href="{{ url_for('editor_plantilla', plantilla_id=p.id) }}" class="btn btn-outline-primary btn-sm me-1">
+                        <i class="bi bi-pencil me-1"></i>Editar
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card"><div class="card-body text-center py-5">
+    <i class="bi bi-layout-text-sidebar" style="font-size:3rem;color:#c7d2fe;"></i>
+    <p class="mt-3 text-muted">Aún no hay plantillas creadas.</p>
+    <a href="{{ url_for('nueva_plantilla') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Crear primera plantilla</a>
+</div></div>
+{% endif %}
+{% endblock %}

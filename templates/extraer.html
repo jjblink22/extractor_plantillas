@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %} — Extraer{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <div class="p-2 rounded-3" style="background:#edfaf3;"><i class="bi bi-cloud-arrow-up fs-4" style="color:#27ae60;"></i></div>
+    <div><h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Extraer datos de PDFs</h2>
+    <p class="text-muted mb-0 small">Aplica una plantilla a uno o varios PDFs</p></div>
+</div>
+<div class="row justify-content-center"><div class="col-lg-7">
+<div class="card">
+    <div class="card-header"><i class="bi bi-cloud-arrow-up me-2" style="color:#27ae60;"></i>Configurar extracción</div>
+    <div class="card-body">
+        {% if not plantillas %}
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No hay plantillas disponibles. <a href="{{ url_for('nueva_plantilla') }}">Crea una primero</a>.
+        </div>
+        {% else %}
+        <form method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Plantilla a aplicar</label>
+                <select name="plantilla_id" class="form-select" required>
+                    <option value="">— Selecciona una plantilla —</option>
+                    {% for p in plantillas %}
+                    <option value="{{ p.id }}">{{ p.nombre }} ({{ p.tipo_documento }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Archivos PDF</label>
+                <div class="border-2 border-dashed rounded-3 p-4 text-center" style="border:2px dashed #c7d2fe;background:#f8faff;cursor:pointer;" onclick="document.getElementById('inputPdfs').click()">
+                    <i class="bi bi-file-earmark-pdf-fill" style="font-size:2rem;color:#e74c3c;"></i>
+                    <div class="mt-2 text-muted small">Clic para seleccionar o arrastra aquí</div>
+                    <div id="archivosSeleccionados" class="mt-2 fw-semibold small" style="color:#2e86de;"></div>
+                </div>
+                <input type="file" id="inputPdfs" name="pdfs" accept=".pdf" multiple style="display:none;"
+                       onchange="document.getElementById('archivosSeleccionados').textContent = this.files.length + ' archivo(s) seleccionado(s)'">
+            </div>
+            <button type="submit" class="btn btn-success w-100 py-2 fw-semibold">
+                <i class="bi bi-play-circle me-1"></i>Extraer datos
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+</div></div>
+{% endblock %}

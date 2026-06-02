@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% block title %} — Editor: {{ plantilla.nombre }}{% endblock %}
+
+{% block styles %}
+<style>
+    .editor-layout { display:grid; grid-template-columns:1fr 340px; gap:20px; height:calc(100vh - 100px); }
+    .pdf-panel { background:#fff; border-radius:12px; border:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column; }
+    .pdf-toolbar { background:#1e3a5f; color:#fff; padding:10px 16px; display:flex; align-items:center; gap:12px; flex-shrink:0; }
+    .pdf-viewport { position:relative; flex:1; overflow:auto; background:#525659; display:flex; align-items:flex-start; justify-content:center; padding:20px; }
+    #pdfCanvas { display:block; box-shadow:0 4px 24px rgba(0,0,0,.4); }
+    #selectionOverlay { position:absolute; top:20px; left:50%; transform:translateX(-50%); cursor:crosshair; }
+    .zona-campo { position:absolute; border:2px solid #2e86de; background:rgba(46,134,222,.15); border-radius:3px; cursor:pointer; }
+    .zona-campo:hover { background:rgba(46,134,222,.3); }
+    .zona-campo .zona-label { position:absolute; top:-22px; left:0; background:#2e86de; color:#fff; font-size:0.65rem; font-weight:600; padding:2px 6px; border-radius:3px; white-space:nowrap; }
+    .zona-campo.seleccionada { border-color:#e74c3c; background:rgba(231,76,60,.15); }
+    .zona-campo.seleccionada .zona-label { background:#e74c3c; }
+    #seleccionActual { position:absolute; border:2px dashed #f39c12; background:rgba(243,156,18,.1); pointer-events:none; display:none; }
+
+    .config-panel { display:flex; flex-direction:column; gap:16px; overflow-y:auto; }
+    .upload-zone { border:2px dashed #c7d2fe; border-radius:10px; padding:20px; text-align:center; cursor:pointer; transition:all .2s; background:#f8faff; }
+    .upload-zone:hover { border-color:#2e86de; background:#eef4ff; }
+    .campo-item { background:#f8fafc; border:1px solid #dde3ea; border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:10px; cursor:pointer; transition:background .15s; }
+    .campo-item:hover { background:#eef2ff; }
+    .campo-item.activo { background:#eef2ff; border-color:#2e86de; }
+    .campo-color { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+
+    .form-control, .form-select { font-size:0.82rem; border-radius:6px; }
+    .form-label { font-size:0.78rem; font-weight:600; color:#5a6a7a; margin-bottom:3px; text-transform:uppercase; letter-spacing:.04em; }
+
+    .btn-sm { font-size:0.78rem; padding:.3rem .7rem; }
+    .instruccion { background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:10px 14px; font-size:0.8rem; color:#7d5a0a; }
+
+    .preview-resultado { background:#f8fafc; border:1px solid #dde3ea; border-radius:8px; padding:10px; font-family:monospace; font-size:0.78rem; max-height:200px; overflow-y:auto; }
+    .preview-ok     { color:#27ae60; }
+    .preview-revisar{ color:#e74c3c; }
+    .preview-vacio  { color:#aab5c0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-3">
+    <a href="{{ url_for('lista_plantillas') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+        <h2 class="mb-0 fw-bold" style="font-size:1.2rem;color:#1e3a5f;">{{ plantilla.nombre }}</h2>
+        <p class="text-muted mb-0" style="font-size:0.8rem;">Editor visual de plantilla</p>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+        <button class="btn btn-outline-success btn-sm" id="btnPrevisualizar">
+            <i class="bi bi-play-circle me-1"></i>Probar plantilla
+        </button>
+    </div>
+</div>
+
+<div class="editor-layout">
+
+    <!-- Panel PDF -->
+    <div class="pdf-panel">
+        <div class="pdf-toolbar">
+            <i class="bi bi-file-earmark-pdf"></i>
+            <span id="pdfNombre" style="font-size:0.82rem;flex:1;">Sin PDF cargado</span>
+            <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;" id="btnPagAnt">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <span id="paginaInfo" style="font-size:0.82rem;white-space:nowrap;">— / —</span>
+            <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;" id="btnPagSig">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+            <select id="zoomSelect" class="form-select form-select-sm" style="width:90px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">
+                <option value="1">100%</option>
+                <option value="1.5" selected>150%</option>
+                <option value="2">200%</option>
+            </select>
+        </div>
+        <div class="pdf-viewport" id="pdfViewport">
+            <div id="sinPdf" class="text-center py-5" style="color:#8a99a8;">
+                <i class="bi bi-cloud-arrow-up" style="font-size:3rem;display:block;margin-bottom:12px;"></i>
+                Sube un PDF de muestra para comenzar a definir zonas
+            </div>
+            <canvas id="pdfCanvas" style="display:none;"></canvas>
+            <canvas id="selectionOverlay" style="display:none;position:absolute;top:20px;left:50%;transform:translateX(-50%);"></canvas>
+            <div id="zonasContainer" style="position:absolute;top:20px;left:50%;transform:translateX(-50%);pointer-events:auto;"></div>
+            <div id="seleccionActual"></div>
+        </div>
+    </div>
+
+    <!-- Panel configuración -->
+    <div class="config-panel">
+
+        <!-- Subir PDF -->
+        <div class="card">
+            <div class="card-header" style="font-size:0.82rem;"><i class="bi bi-file-earmark-pdf me-2" style="color:#e74c3c;"></i>PDF de Muestra</div>
+            <div class="card-body p-3">
+                <label class="upload-zone w-100" for="inputPdfMuestra">
+                    <i class="bi bi-cloud-arrow-up-fill" style="color:#2e86de;font-size:1.5rem;"></i>
+                    <div style="font-size:0.8rem;color:#5a6a7a;margin-top:4px;" id="labelPdfMuestra">
+                        {% if plantilla.muestra_path %}PDF cargado ✓ — clic para cambiar{% else %}Clic o arrastra el PDF{% endif %}
+                    </div>
+                    <input type="file" id="inputPdfMuestra" accept=".pdf" style="display:none;">
+                </label>
+            </div>
+        </div>
+
+        <!-- Campos definidos -->
+        <div class="card flex-shrink-0">
+            <div class="card-header d-flex justify-content-between align-items-center" style="font-size:0.82rem;">
+                <span><i class="bi bi-list-ul me-2" style="color:#2e86de;"></i>Campos (<span id="totalCampos">{{ campos|length }}</span>)</span>
+                <button class="btn btn-primary btn-sm" id="btnNuevoCampo" disabled>
+                    <i class="bi bi-plus-lg me-1"></i>Nuevo campo
+                </button>
+            </div>
+            <div class="card-body p-2" id="listaCampos" style="max-height:220px;overflow-y:auto;">
+                {% if campos %}
+                    {% for c in campos %}
+                    <div class="campo-item mb-1" data-campo-id="{{ c.id }}"
+                         data-x0="{{ c.x0 }}" data-y0="{{ c.y0 }}" data-x1="{{ c.x1 }}" data-y1="{{ c.y1 }}"
+                         data-pagina="{{ c.pagina }}" data-nombre="{{ c.nombre_campo }}" data-etiqueta="{{ c.etiqueta }}">
+                        <div class="campo-color" style="background:#2e86de;"></div>
+                        <div class="flex-1" style="min-width:0;">
+                            <div class="fw-semibold" style="font-size:0.8rem;color:#1e3a5f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.etiqueta }}</div>
+                            <div class="text-muted" style="font-size:0.72rem;font-family:monospace;">{{ c.nombre_campo }}</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger py-0 px-1 eliminar-campo" data-id="{{ c.id }}" style="font-size:0.7rem;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="text-muted text-center py-3" style="font-size:0.8rem;">
+                    Sin campos. Sube el PDF y arrastra zonas.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Form de campo -->
+        <div class="card" id="panelCampo" style="display:none;">
+            <div class="card-header" style="font-size:0.82rem;"><i class="bi bi-pencil me-2" style="color:#2e86de;"></i>Configurar campo</div>
+            <div class="card-body p-3">
+                <div class="instruccion mb-3">
+                    <i class="bi bi-hand-index me-1"></i>
+                    Arrastra sobre el PDF para marcar la zona del campo, luego completa los datos.
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Etiqueta visible</label>
+                    <input type="text" class="form-control form-control-sm" id="campoEtiqueta" placeholder="Ej: Número de Comprobante">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Nombre de variable</label>
+                    <input type="text" class="form-control form-control-sm" id="campoNombre" placeholder="Ej: numero_comprobante">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Tipo de dato</label>
+                    <select class="form-select form-select-sm" id="campoTipo">
+                        <option value="texto">Texto</option>
+                        <option value="numero">Número</option>
+                        <option value="fecha">Fecha</option>
+                        <option value="rif">RIF venezolano</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Regex de validación (opcional)</label>
+                    <input type="text" class="form-control form-control-sm" id="campoPatron" placeholder="Ej: [\d\-]+">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Zona seleccionada</label>
+                    <div style="font-size:0.75rem;font-family:monospace;background:#f8fafc;border:1px solid #dde3ea;border-radius:6px;padding:6px 10px;color:#5a6a7a;" id="coordenadasInfo">
+                        Sin zona — arrastra sobre el PDF
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm flex-1" id="btnGuardarCampo">
+                        <i class="bi bi-floppy me-1"></i>Guardar
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" id="btnCancelarCampo">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resultados prueba -->
+        <div class="card" id="panelResultado" style="display:none;">
+            <div class="card-header" style="font-size:0.82rem;"><i class="bi bi-check2-circle me-2" style="color:#27ae60;"></i>Resultado de prueba</div>
+            <div class="card-body p-3">
+                <div class="preview-resultado" id="contenidoResultado"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+const PLANTILLA_ID = {{ plantilla.id }};
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let pdfDoc = null, paginaActual = 1, totalPaginas = 1, escala = 1.5;
+let seleccionando = false, startX, startY;
+let zonaActual = null;  // {x0,y0,x1,y1} en coords PDF
+let campoEditandoId = null;
+let camposData = {};  // id → datos del campo
+let pdfAncho = 0, pdfAlto = 0;
+
+const canvas       = document.getElementById('pdfCanvas');
+const ctx          = canvas.getContext('2d');
+const overlay      = document.getElementById('selectionOverlay');
+const overlayCtx   = overlay.getContext('2d');
+const zonasContainer = document.getElementById('zonasContainer');
+const selDiv       = document.getElementById('seleccionActual');
+
+// ── Cargar PDF existente ──────────────────────────────────────────────────
+{% if plantilla.muestra_path %}
+cargarPdfDesdeUrl("{{ url_for('ver_muestra_pdf', plantilla_id=plantilla.id) }}");
+{% endif %}
+
+// ── Subir nuevo PDF ───────────────────────────────────────────────────────
+document.getElementById('inputPdfMuestra').addEventListener('change', async function() {
+    if (!this.files.length) return;
+    const fd = new FormData();
+    fd.append('pdf_muestra', this.files[0]);
+    const r = await fetch("{{ url_for('subir_muestra', plantilla_id=plantilla.id) }}", {method:'POST',body:fd});
+    const d = await r.json();
+    if (d.success) {
+        document.getElementById('labelPdfMuestra').textContent = 'PDF cargado ✓';
+        cargarPdfDesdeUrl(d.pdf_url);
+    }
+});
+
+async function cargarPdfDesdeUrl(url) {
+    pdfDoc = await pdfjsLib.getDocument(url).promise;
+    totalPaginas = pdfDoc.numPages;
+    paginaActual = 1;
+    await renderizarPagina(paginaActual);
+    document.getElementById('pdfCanvas').style.display = 'block';
+    document.getElementById('selectionOverlay').style.display = 'block';
+    document.getElementById('sinPdf').style.display = 'none';
+    document.getElementById('btnNuevoCampo').disabled = false;
+    actualizarInfoPagina();
+}
+
+async function renderizarPagina(num) {
+    const page = await pdfDoc.getPage(num);
+    const vp = page.getViewport({ scale: escala });
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    overlay.width  = vp.width;
+    overlay.height = vp.height;
+    pdfAncho = page.getViewport({scale:1}).width;
+    pdfAlto  = page.getViewport({scale:1}).height;
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    // Posicionar zonasContainer igual que el canvas
+    zonasContainer.style.width  = vp.width + 'px';
+    zonasContainer.style.height = vp.height + 'px';
+    document.getElementById('pdfNombre').textContent = `Página ${num}`;
+    dibujarZonas();
+}
+
+// ── Paginación ────────────────────────────────────────────────────────────
+document.getElementById('btnPagAnt').addEventListener('click', () => {
+    if (paginaActual > 1) { paginaActual--; renderizarPagina(paginaActual); actualizarInfoPagina(); }
+});
+document.getElementById('btnPagSig').addEventListener('click', () => {
+    if (paginaActual < totalPaginas) { paginaActual++; renderizarPagina(paginaActual); actualizarInfoPagina(); }
+});
+document.getElementById('zoomSelect').addEventListener('change', function() {
+    escala = parseFloat(this.value);
+    if (pdfDoc) renderizarPagina(paginaActual);
+});
+function actualizarInfoPagina() {
+    document.getElementById('paginaInfo').textContent = `${paginaActual} / ${totalPaginas}`;
+}
+
+// ── Selección de zona arrastrando ─────────────────────────────────────────
+overlay.addEventListener('mousedown', e => {
+    if (!pdfDoc) return;
+    seleccionando = true;
+    const r = overlay.getBoundingClientRect();
+    startX = e.clientX - r.left;
+    startY = e.clientY - r.top;
+    selDiv.style.display = 'block';
+    posicionarSelDiv(startX, startY, 0, 0);
+});
+
+overlay.addEventListener('mousemove', e => {
+    if (!seleccionando) return;
+    const r = overlay.getBoundingClientRect();
+    const cx = e.clientX - r.left;
+    const cy = e.clientY - r.top;
+    const x = Math.min(startX, cx), y = Math.min(startY, cy);
+    const w = Math.abs(cx - startX),   h = Math.abs(cy - startY);
+    posicionarSelDiv(x, y, w, h);
+});
+
+overlay.addEventListener('mouseup', e => {
+    if (!seleccionando) return;
+    seleccionando = false;
+    const r = overlay.getBoundingClientRect();
+    const ex = e.clientX - r.left, ey = e.clientY - r.top;
+    const px0 = Math.min(startX, ex) / escala;
+    const py0 = Math.min(startY, ey) / escala;
+    const px1 = Math.max(startX, ex) / escala;
+    const py1 = Math.max(startY, ey) / escala;
+    if (Math.abs(px1-px0) < 5 || Math.abs(py1-py0) < 5) { selDiv.style.display='none'; return; }
+    zonaActual = {x0:px0, y0:py0, x1:px1, y1:py1};
+    document.getElementById('coordenadasInfo').textContent =
+        `x0:${px0.toFixed(1)} y0:${py0.toFixed(1)} x1:${px1.toFixed(1)} y1:${py1.toFixed(1)}`;
+    selDiv.style.display = 'none';
+    document.getElementById('panelCampo').style.display = 'block';
+});
+
+function posicionarSelDiv(x, y, w, h) {
+    const vp = document.getElementById('pdfViewport').getBoundingClientRect();
+    const cv = canvas.getBoundingClientRect();
+    const offsetLeft = cv.left - vp.left + 20;  // 20 = padding del viewport
+    selDiv.style.left   = (offsetLeft + x) + 'px';
+    selDiv.style.top    = (20 + y) + 'px';       // 20 = padding top del viewport
+    selDiv.style.width  = w + 'px';
+    selDiv.style.height = h + 'px';
+    selDiv.style.display = 'block';
+}
+
+// ── Cargar campos existentes ───────────────────────────────────────────────
+{% for c in campos %}
+camposData[{{ c.id }}] = {
+    id: {{ c.id }}, nombre: "{{ c.nombre_campo }}", etiqueta: "{{ c.etiqueta }}",
+    x0: {{ c.x0 or 0 }}, y0: {{ c.y0 or 0 }}, x1: {{ c.x1 or 0 }}, y1: {{ c.y1 or 0 }},
+    pagina: {{ c.pagina or 1 }}
+};
+{% endfor %}
+
+function dibujarZonas() {
+    zonasContainer.innerHTML = '';
+    Object.values(camposData).forEach(c => {
+        if (c.pagina !== paginaActual) return;
+        const div = document.createElement('div');
+        div.className = 'zona-campo';
+        div.dataset.id = c.id;
+        div.style.left   = (c.x0 * escala) + 'px';
+        div.style.top    = (c.y0 * escala) + 'px';
+        div.style.width  = ((c.x1 - c.x0) * escala) + 'px';
+        div.style.height = ((c.y1 - c.y0) * escala) + 'px';
+        const label = document.createElement('div');
+        label.className = 'zona-label';
+        label.textContent = c.etiqueta;
+        div.appendChild(label);
+        div.addEventListener('click', () => seleccionarCampo(c.id));
+        zonasContainer.appendChild(div);
+    });
+}
+
+// ── Nuevo campo ────────────────────────────────────────────────────────────
+document.getElementById('btnNuevoCampo').addEventListener('click', () => {
+    campoEditandoId = null;
+    zonaActual = null;
+    document.getElementById('campoEtiqueta').value = '';
+    document.getElementById('campoNombre').value   = '';
+    document.getElementById('campoPatron').value   = '';
+    document.getElementById('coordenadasInfo').textContent = 'Sin zona — arrastra sobre el PDF';
+    document.getElementById('panelCampo').style.display = 'block';
+    document.querySelectorAll('.campo-item').forEach(i => i.classList.remove('activo'));
+});
+
+function seleccionarCampo(id) {
+    const c = camposData[id];
+    if (!c) return;
+    campoEditandoId = id;
+    zonaActual = {x0:c.x0, y0:c.y0, x1:c.x1, y1:c.y1};
+    document.getElementById('campoEtiqueta').value = c.etiqueta;
+    document.getElementById('campoNombre').value   = c.nombre;
+    document.getElementById('coordenadasInfo').textContent =
+        `x0:${c.x0.toFixed(1)} y0:${c.y0.toFixed(1)} x1:${c.x1.toFixed(1)} y1:${c.y1.toFixed(1)}`;
+    document.getElementById('panelCampo').style.display = 'block';
+    document.querySelectorAll('.campo-item').forEach(i =>
+        i.classList.toggle('activo', parseInt(i.dataset.campoId) === id));
+    document.querySelectorAll('.zona-campo').forEach(z =>
+        z.classList.toggle('seleccionada', parseInt(z.dataset.id) === id));
+}
+
+// ── Guardar campo ──────────────────────────────────────────────────────────
+document.getElementById('btnGuardarCampo').addEventListener('click', async () => {
+    const etiqueta = document.getElementById('campoEtiqueta').value.trim();
+    const nombre   = document.getElementById('campoNombre').value.trim();
+    if (!etiqueta || !nombre) { alert('Completa etiqueta y nombre de variable.'); return; }
+    if (!zonaActual) { alert('Arrastra una zona sobre el PDF primero.'); return; }
+
+    const payload = {
+        id: campoEditandoId,
+        etiqueta, nombre_campo: nombre,
+        tipo_campo: document.getElementById('campoTipo').value,
+        patron_validacion: document.getElementById('campoPatron').value,
+        pagina: paginaActual,
+        ...zonaActual
+    };
+    const r = await fetch(`/plantillas/${PLANTILLA_ID}/campos`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.success) {
+        camposData[d.id] = {...payload, id:d.id};
+        actualizarListaCampos();
+        dibujarZonas();
+        document.getElementById('panelCampo').style.display = 'none';
+        campoEditandoId = null; zonaActual = null;
+    }
+});
+
+document.getElementById('btnCancelarCampo').addEventListener('click', () => {
+    document.getElementById('panelCampo').style.display = 'none';
+    campoEditandoId = null; zonaActual = null;
+});
+
+// ── Eliminar campo ─────────────────────────────────────────────────────────
+document.getElementById('listaCampos').addEventListener('click', async e => {
+    const btn = e.target.closest('.eliminar-campo');
+    if (!btn) return;
+    e.stopPropagation();
+    const id = parseInt(btn.dataset.id);
+    await fetch(`/plantillas/${PLANTILLA_ID}/campos/${id}`, {method:'DELETE'});
+    delete camposData[id];
+    actualizarListaCampos();
+    dibujarZonas();
+});
+
+function actualizarListaCampos() {
+    const lista = document.getElementById('listaCampos');
+    const n = Object.keys(camposData).length;
+    document.getElementById('totalCampos').textContent = n;
+    if (n === 0) {
+        lista.innerHTML = '<div class="text-muted text-center py-3" style="font-size:0.8rem;">Sin campos. Sube el PDF y arrastra zonas.</div>';
+        return;
+    }
+    lista.innerHTML = Object.values(camposData).map(c => `
+        <div class="campo-item mb-1" data-campo-id="${c.id}">
+            <div class="campo-color" style="background:#2e86de;"></div>
+            <div class="flex-1" style="min-width:0;">
+                <div class="fw-semibold" style="font-size:0.8rem;color:#1e3a5f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.etiqueta}</div>
+                <div class="text-muted" style="font-size:0.72rem;font-family:monospace;">${c.nombre}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-danger py-0 px-1 eliminar-campo" data-id="${c.id}" style="font-size:0.7rem;">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `).join('');
+    // Re-agregar click en campo-item
+    lista.querySelectorAll('.campo-item').forEach(item => {
+        item.addEventListener('click', e => {
+            if (e.target.closest('.eliminar-campo')) return;
+            seleccionarCampo(parseInt(item.dataset.campoId));
+        });
+    });
+}
+
+// ── Previsualizar extracción ───────────────────────────────────────────────
+document.getElementById('btnPrevisualizar').addEventListener('click', async () => {
+    const btn = document.getElementById('btnPrevisualizar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
+    const r = await fetch(`/plantillas/${PLANTILLA_ID}/previsualizar`, {method:'POST'});
+    const d = await r.json();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-play-circle me-1"></i>Probar plantilla';
+    if (!d.success) { alert(d.message); return; }
+    const panel = document.getElementById('panelResultado');
+    const cont  = document.getElementById('contenidoResultado');
+    cont.innerHTML = Object.entries(d.resultado).map(([k,v]) => {
+        const cls = v ? 'preview-ok' : 'preview-vacio';
+        return `<div><span style="color:#8a99a8;">${k}:</span> <span class="${cls}">${v || '(vacío)'}</span></div>`;
+    }).join('');
+    panel.style.display = 'block';
+});
+
+// Auto-convertir etiqueta a nombre de variable
+document.getElementById('campoEtiqueta').addEventListener('blur', function() {
+    const nombre = document.getElementById('campoNombre');
+    if (!nombre.value) {
+        nombre.value = this.value.toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+            .replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+    }
+});
+</script>
+{% endblock %}
