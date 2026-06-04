@@ -205,7 +205,7 @@ def nueva_plantilla():
         """, (nombre,
               request.form.get('descripcion','').strip(),
               request.form.get('tipo_documento','generico')),
-              fetchone=True)
+              fetchone=True, commit=True)
         if pid:
             flash(f'Plantilla "{nombre}" creada.', 'success')
             return redirect(url_for('editor_plantilla', plantilla_id=pid['id']))
@@ -280,7 +280,7 @@ def guardar_campo(plantilla_id):
                  data.get('tipo_campo','texto'), data.get('pagina',1),
                  data['x0'], data['y0'], data['x1'], data['y1'],
                  data.get('patron_validacion'), data.get('post_proceso'), orden),
-                fetchone=True)
+                fetchone=True, commit=True)
         return jsonify(success=True, id=row['id'] if row else None)
 
 @app.route('/plantillas/<int:plantilla_id>/campos/<int:campo_id>', methods=['DELETE'])
