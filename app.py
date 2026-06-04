@@ -290,6 +290,26 @@ def eliminar_campo(plantilla_id, campo_id):
              (campo_id, plantilla_id), commit=True)
     return jsonify(success=True)
 
+@app.route('/plantillas/<int:plantilla_id>/preview_zona', methods=['POST'])
+@login_required()
+def preview_zona(plantilla_id):
+    """Extrae y devuelve el texto de una zona del PDF de muestra."""
+    data     = request.get_json()
+    plantilla = db_query("SELECT muestra_path FROM plantillas WHERE id=%s",
+                         (plantilla_id,), fetchone=True)
+    if not plantilla or not plantilla['muestra_path']:
+        return jsonify(texto=None, message='Sin PDF de muestra.')
+    try:
+        with pdfplumber.open(plantilla['muestra_path']) as pdf:
+            pagina = data.get('pagina', 1)
+            page   = pdf.pages[pagina - 1]
+            zona   = page.crop((data['x0'], data['y0'], data['x1'], data['y1']))
+            texto  = (zona.extract_text() or '').strip()
+        return jsonify(texto=texto or None)
+    except Exception as e:
+        return jsonify(texto=None, message=str(e))
+
+
 @app.route('/plantillas/<int:plantilla_id>/previsualizar', methods=['POST'])
 @login_required()
 def previsualizar_extraccion(plantilla_id):

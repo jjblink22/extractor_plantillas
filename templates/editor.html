@@ -173,6 +173,13 @@
                         Sin zona — arrastra sobre el PDF
                     </div>
                 </div>
+                <div class="mb-3">
+                    <label class="form-label">Texto extraído de la zona <span style="color:#27ae60;font-weight:normal;">(preview)</span></label>
+                    <div style="font-size:0.8rem;font-family:monospace;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px 10px;min-height:36px;word-break:break-all;" id="previewTextoZona">
+                        Arrastra sobre el PDF para ver el texto
+                    </div>
+                    <div class="form-text">Si incluye texto no deseado, ajusta la selección o usa el regex abajo.</div>
+                </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-primary btn-sm flex-1" id="btnGuardarCampo">
                         <i class="bi bi-floppy me-1"></i>Guardar
@@ -311,10 +318,8 @@ pdfWrapper.addEventListener('mouseup', e => {
     const px1 = Math.max(startX, ex) / escala;
     const py1 = Math.max(startY, ey) / escala;
     if (Math.abs(px1-px0) < 5 || Math.abs(py1-py0) < 5) return;
-    // Nueva zona — limpiar campo anterior y mostrar panel
     zonaActual = {x0:px0, y0:py0, x1:px1, y1:py1};
     if (!campoEditandoId) {
-        // Campo nuevo: limpiar formulario
         document.getElementById('campoEtiqueta').value = '';
         document.getElementById('campoNombre').value   = '';
         document.getElementById('campoPatron').value   = '';
@@ -323,7 +328,34 @@ pdfWrapper.addEventListener('mouseup', e => {
         `x0:${px0.toFixed(1)} y0:${py0.toFixed(1)} x1:${px1.toFixed(1)} y1:${py1.toFixed(1)} — Pág ${paginaActual}`;
     document.getElementById('panelCampo').style.display = 'block';
     document.getElementById('campoEtiqueta').focus();
+
+    // Preview en tiempo real del texto extraído
+    previewZona(px0, py0, px1, py1, paginaActual);
 });
+
+async function previewZona(x0, y0, x1, y1, pagina) {
+    const previewEl = document.getElementById('previewTextoZona');
+    previewEl.textContent = 'Extrayendo...';
+    previewEl.style.color = '#8a99a8';
+    try {
+        const r = await fetch(`/plantillas/${PLANTILLA_ID}/preview_zona`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({x0, y0, x1, y1, pagina})
+        });
+        const d = await r.json();
+        if (d.texto) {
+            previewEl.textContent = d.texto;
+            previewEl.style.color = '#1e3a5f';
+        } else {
+            previewEl.textContent = '(zona vacía — ajusta la selección)';
+            previewEl.style.color = '#e74c3c';
+        }
+    } catch(e) {
+        previewEl.textContent = 'Error al previsualizar';
+        previewEl.style.color = '#e74c3c';
+    }
+}
 
 // evitar que el drag salga del wrapper
 pdfWrapper.addEventListener('mouseleave', () => {
