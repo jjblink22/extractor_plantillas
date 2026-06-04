@@ -523,10 +523,10 @@ document.getElementById('btnPrevisualizar').addEventListener('click', async () =
     panel.style.display = 'block';
 });
 
-// Auto-convertir etiqueta a nombre de variable
-document.getElementById('campoEtiqueta').addEventListener('blur', function() {
+// Auto-convertir etiqueta a nombre de variable en tiempo real
+document.getElementById('campoEtiqueta').addEventListener('input', function() {
     const nombre = document.getElementById('campoNombre');
-    if (!nombre.value) {
+    if (!campoEditandoId) {  // Solo auto-llenar si es campo nuevo
         nombre.value = this.value.toLowerCase()
             .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
             .replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');

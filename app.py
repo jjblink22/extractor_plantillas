@@ -1,4 +1,11 @@
 import os, sys, json, re
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+from email.header import Header
+from email.utils import formataddr
 
 # Parchear encoding ANTES de importar psycopg2 para evitar error con PostgreSQL en español en Windows
 os.environ['PGCLIENTENCODING'] = 'UTF8'
@@ -347,12 +354,13 @@ def extraer():
                      session.get('user_id'), session.get('nombre'),
                      json.dumps(datos), estado), commit=True)
                 resultados.append({'archivo': archivo.filename, 'datos': datos,
-                                   'confianza': confianza, 'estado': estado})
+                                   'confianza': confianza, 'estado': estado,
+                                   'pdf_path': path})
             except Exception as e:
                 app.logger.error(f"Error extrayendo {archivo.filename}: {e}")
-                resultados.append({'archivo': archivo.filename, 'error': str(e), 'estado': 'error'})
-            finally:
-                if os.path.exists(path): os.remove(path)
+                resultados.append({'archivo': archivo.filename, 'error': str(e),
+                                   'estado': 'error', 'pdf_path': ''})
+            # PDF se mantiene en uploads/ para poder enviarlo por correo
         return render_template('resultado_extraccion.html', resultados=resultados,
                                plantilla_id=plantilla_id)
     return render_template('extraer.html', plantillas=plantillas)
@@ -382,6 +390,53 @@ def aplicar_plantilla(pdf_path, plantilla_id):
                 confianza[campo['nombre_campo']] = 'error'
                 app.logger.error(f"Error extrayendo campo {campo['nombre_campo']}: {e}")
     return resultados, confianza
+
+@app.route('/extraer/enviar', methods=['POST'])
+@login_required()
+def enviar_extraido():
+    """Envía por correo un PDF ya extraído."""
+    data         = request.get_json()
+    correo_dest  = data.get('correo', '').strip()
+    pdf_path     = data.get('pdf_path', '')
+    archivo_nombre = data.get('archivo_nombre', 'documento.pdf')
+    asunto       = data.get('asunto', 'Documento adjunto')
+    cuerpo       = data.get('cuerpo', 'Estimado/a, adjunto encontrará el documento solicitado.')
+
+    if not correo_dest or not pdf_path or not os.path.exists(pdf_path):
+        return jsonify(success=False, message='Datos incompletos o archivo no disponible.')
+
+    # Config SMTP desde .env
+    smtp_server = os.getenv('SMTP_SERVER', '')
+    smtp_port   = int(os.getenv('SMTP_PORT', 587))
+    email_user  = os.getenv('EMAIL_USER', '')
+    email_pass  = os.getenv('EMAIL_PASS', '')
+    email_nombre= os.getenv('EMAIL_NOMBRE', 'Extractor de Documentos')
+
+    if not all([smtp_server, email_user, email_pass]):
+        return jsonify(success=False, message='Configura el servidor SMTP en el archivo .env')
+
+    try:
+        msg = MIMEMultipart()
+        msg['From']    = formataddr((str(Header(email_nombre, 'utf-8')), email_user))
+        msg['To']      = correo_dest
+        msg['Subject'] = Header(asunto, 'utf-8')
+        msg.attach(MIMEText(cuerpo, 'plain', 'utf-8'))
+        with open(pdf_path, 'rb') as f:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(f.read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename="{archivo_nombre}"')
+            msg.attach(part)
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(email_user, email_pass)
+        server.send_message(msg)
+        server.quit()
+        return jsonify(success=True, message=f'Correo enviado a {correo_dest}')
+    except Exception as e:
+        app.logger.error(f"Error enviando correo: {e}")
+        return jsonify(success=False, message=str(e))
+
 
 # ── Historial ────────────────────────────────────────────────────────────────
 @app.route('/historial')
