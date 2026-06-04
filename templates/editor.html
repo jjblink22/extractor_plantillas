@@ -345,7 +345,7 @@ async function previewZona(x0, y0, x1, y1, pagina) {
     previewEl.textContent = 'Extrayendo...';
     previewEl.style.color = '#8a99a8';
     try {
-        const r = await fetch(`/plantillas/${PLANTILLA_ID}/preview_zona`, {
+        const r = await fetch(`/extractor/plantillas/${PLANTILLA_ID}/preview_zona`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({x0, y0, x1, y1, pagina})
@@ -442,7 +442,7 @@ document.getElementById('btnGuardarCampo').addEventListener('click', async () =>
         pagina: paginaActual,
         ...zonaActual
     };
-    const r = await fetch(`/plantillas/${PLANTILLA_ID}/campos`, {
+    const r = await fetch(`/extractor/plantillas/${PLANTILLA_ID}/campos`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify(payload)
     });
@@ -477,7 +477,7 @@ document.getElementById('listaCampos').addEventListener('click', async e => {
     if (!btn) return;
     e.stopPropagation();
     const id = parseInt(btn.dataset.id);
-    await fetch(`/plantillas/${PLANTILLA_ID}/campos/${id}`, {method:'DELETE'});
+    await fetch(`/extractor/plantillas/${PLANTILLA_ID}/campos/${id}`, {method:'DELETE'});
     delete camposData[id];
     actualizarListaCampos();
     dibujarZonas();
@@ -517,7 +517,7 @@ document.getElementById('btnPrevisualizar').addEventListener('click', async () =
     const btn = document.getElementById('btnPrevisualizar');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
-    const r = await fetch(`/plantillas/${PLANTILLA_ID}/previsualizar`, {method:'POST'});
+    const r = await fetch(`/extractor/plantillas/${PLANTILLA_ID}/previsualizar`, {method:'POST'});
     const d = await r.json();
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-play-circle me-1"></i>Probar plantilla';

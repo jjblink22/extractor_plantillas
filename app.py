@@ -2070,7 +2070,7 @@ def historial_extractor():
     filas = db_query("""
         SELECT e.*, p.nombre as plantilla_nombre
         FROM extracciones_ext e
-        LEFT JOIN plantillas p ON p.id = e.plantilla_id
+        LEFT JOIN plantillas_ext p ON p.id = e.plantilla_id
         ORDER BY e.fecha DESC LIMIT 200
     """, fetchall=True) or []
     return render_template('historial_extractor.html', extracciones=filas)
