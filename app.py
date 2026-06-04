@@ -107,6 +107,11 @@ def init_db():
             post_proceso TEXT,
             orden INTEGER DEFAULT 0)'''),
 
+        ("configuracion", '''CREATE TABLE IF NOT EXISTS configuracion (
+            clave VARCHAR(100) PRIMARY KEY,
+            valor TEXT,
+            actualizado TIMESTAMP DEFAULT NOW())'''),
+
         ("extracciones", '''CREATE TABLE IF NOT EXISTS extracciones (
             id SERIAL PRIMARY KEY,
             plantilla_id INTEGER REFERENCES plantillas(id),
@@ -141,7 +146,32 @@ def init_db():
     except Exception as e:
         app.logger.error(f"Error creando admin: {e}")
 
+    # Valores por defecto de configuración
+    config_defaults = [
+        ('smtp_server',  os.getenv('SMTP_SERVER', '')),
+        ('smtp_port',    os.getenv('SMTP_PORT', '587')),
+        ('email_user',   os.getenv('EMAIL_USER', '')),
+        ('email_pass',   os.getenv('EMAIL_PASS', '')),
+        ('email_nombre', os.getenv('EMAIL_NOMBRE', 'Extractor de Documentos')),
+    ]
+    for clave, valor in config_defaults:
+        try:
+            db_query("""INSERT INTO configuracion (clave, valor) VALUES (%s,%s)
+                        ON CONFLICT (clave) DO NOTHING""",
+                     (clave, valor), commit=True)
+        except: pass
+
     app.logger.info("Base de datos inicializada.")
+
+
+def get_config(clave, default=''):
+    row = db_query("SELECT valor FROM configuracion WHERE clave=%s", (clave,), fetchone=True)
+    return row['valor'] if row and row['valor'] else default
+
+def set_config(clave, valor):
+    db_query("""INSERT INTO configuracion (clave, valor) VALUES (%s,%s)
+                ON CONFLICT (clave) DO UPDATE SET valor=EXCLUDED.valor, actualizado=NOW()""",
+             (clave, valor), commit=True)
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 def login_required(roles=None):
@@ -406,11 +436,11 @@ def enviar_extraido():
         return jsonify(success=False, message='Datos incompletos o archivo no disponible.')
 
     # Config SMTP desde .env
-    smtp_server = os.getenv('SMTP_SERVER', '')
-    smtp_port   = int(os.getenv('SMTP_PORT', 587))
-    email_user  = os.getenv('EMAIL_USER', '')
-    email_pass  = os.getenv('EMAIL_PASS', '')
-    email_nombre= os.getenv('EMAIL_NOMBRE', 'Extractor de Documentos')
+    smtp_server = get_config('smtp_server')
+    smtp_port   = int(get_config('smtp_port', '587'))
+    email_user  = get_config('email_user')
+    email_pass  = get_config('email_pass')
+    email_nombre= get_config('email_nombre', 'Extractor de Documentos')
 
     if not all([smtp_server, email_user, email_pass]):
         return jsonify(success=False, message='Configura el servidor SMTP en el archivo .env')
@@ -435,6 +465,58 @@ def enviar_extraido():
         return jsonify(success=True, message=f'Correo enviado a {correo_dest}')
     except Exception as e:
         app.logger.error(f"Error enviando correo: {e}")
+        return jsonify(success=False, message=str(e))
+
+
+@app.route('/configuracion', methods=['GET', 'POST'])
+@login_required(roles=['admin'])
+def configuracion():
+    if request.method == 'POST':
+        set_config('smtp_server',  request.form.get('smtp_server','').strip())
+        set_config('smtp_port',    request.form.get('smtp_port','587').strip())
+        set_config('email_user',   request.form.get('email_user','').strip())
+        set_config('email_nombre', request.form.get('email_nombre','').strip())
+        if request.form.get('email_pass','').strip():
+            set_config('email_pass', request.form.get('email_pass').strip())
+        flash('Configuración guardada correctamente.', 'success')
+        return redirect(url_for('configuracion'))
+
+    cfg = {
+        'smtp_server':  get_config('smtp_server'),
+        'smtp_port':    get_config('smtp_port', '587'),
+        'email_user':   get_config('email_user'),
+        'email_pass':   get_config('email_pass'),
+        'email_nombre': get_config('email_nombre', 'Extractor de Documentos'),
+    }
+    return render_template('configuracion.html', cfg=cfg)
+
+
+@app.route('/configuracion/probar', methods=['POST'])
+@login_required(roles=['admin'])
+def probar_correo():
+    correo_dest = request.json.get('correo','').strip()
+    if not correo_dest:
+        return jsonify(success=False, message='Ingresa un correo de destino.')
+    smtp_server = get_config('smtp_server')
+    smtp_port   = int(get_config('smtp_port', '587'))
+    email_user  = get_config('email_user')
+    email_pass  = get_config('email_pass')
+    email_nombre= get_config('email_nombre', 'Extractor de Documentos')
+    if not all([smtp_server, email_user, email_pass]):
+        return jsonify(success=False, message='Configura primero el servidor SMTP.')
+    try:
+        msg = MIMEMultipart()
+        msg['From']    = formataddr((str(Header(email_nombre, 'utf-8')), email_user))
+        msg['To']      = correo_dest
+        msg['Subject'] = Header('Prueba de configuración — Extractor de Documentos', 'utf-8')
+        msg.attach(MIMEText('Este es un correo de prueba. La configuración SMTP es correcta.', 'plain', 'utf-8'))
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(email_user, email_pass)
+        server.send_message(msg)
+        server.quit()
+        return jsonify(success=True, message=f'Correo de prueba enviado a {correo_dest}.')
+    except Exception as e:
         return jsonify(success=False, message=str(e))
 
 

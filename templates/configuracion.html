@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %} — Configuración{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <div class="p-2 rounded-3" style="background:#eef2ff;">
+        <i class="bi bi-gear-fill fs-4" style="color:#2e86de;"></i>
+    </div>
+    <div>
+        <h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Configuración</h2>
+        <p style="color:#5a6a7a;margin:0;font-size:0.85rem;">Cuenta de correo saliente para el envío de documentos</p>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show mb-4">
+            <i class="bi bi-{{ 'check-circle' if category=='success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endwith %}
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card" style="border-left:4px solid #2e86de;">
+            <div class="card-header"><i class="bi bi-server me-2" style="color:#2e86de;"></i>Configuración SMTP</div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-8">
+                            <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Servidor SMTP</label>
+                            <input type="text" class="form-control" name="smtp_server"
+                                   value="{{ cfg.smtp_server }}" placeholder="mail.empresa.com">
+                        </div>
+                        <div class="col-sm-4">
+                            <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Puerto</label>
+                            <input type="number" class="form-control" name="smtp_port"
+                                   value="{{ cfg.smtp_port }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Correo remitente</label>
+                        <input type="email" class="form-control" name="email_user"
+                               value="{{ cfg.email_user }}" placeholder="documentos@empresa.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Nombre visible del remitente</label>
+                        <input type="text" class="form-control" name="email_nombre"
+                               value="{{ cfg.email_nombre }}" placeholder="Empresa — Documentos">
+                        <div class="form-text">Los destinatarios ven este nombre en el campo "De:"</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Contraseña</label>
+                        <input type="password" class="form-control" name="email_pass"
+                               placeholder="Dejar vacío para no cambiar" autocomplete="new-password">
+                        <div class="form-text">
+                            {% if cfg.email_pass %}
+                                <span style="color:#27ae60;"><i class="bi bi-lock-fill me-1"></i>Contraseña configurada.</span>
+                            {% else %}
+                                <span style="color:#f39c12;"><i class="bi bi-exclamation-circle me-1"></i>Sin contraseña configurada.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-floppy me-1"></i>Guardar configuración
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-send-check me-2" style="color:#2e86de;"></i>Probar conexión</div>
+            <div class="card-body">
+                <p style="color:#5a6a7a;font-size:0.875rem;">Envía un correo de prueba para verificar que la configuración es correcta.</p>
+                <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Correo de destino</label>
+                <div class="input-group mb-3">
+                    <input type="email" class="form-control" id="correoProeba" placeholder="tu@correo.com">
+                    <button class="btn btn-outline-primary" id="btnProbar" type="button">
+                        <i class="bi bi-send"></i> Enviar prueba
+                    </button>
+                </div>
+                <div id="resultadoPrueba"></div>
+
+                <hr class="my-3">
+                <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#8a99a8;margin-bottom:8px;">Configuración activa</p>
+                <table class="table table-sm mb-0" style="font-size:0.82rem;">
+                    <tr><td style="color:#8a99a8;width:100px;">Servidor</td><td style="font-family:monospace;">{{ cfg.smtp_server or '—' }}</td></tr>
+                    <tr><td style="color:#8a99a8;">Puerto</td><td style="font-family:monospace;">{{ cfg.smtp_port or '—' }}</td></tr>
+                    <tr><td style="color:#8a99a8;">Usuario</td><td style="font-family:monospace;">{{ cfg.email_user or '—' }}</td></tr>
+                    <tr><td style="color:#8a99a8;">Remitente</td><td>{{ cfg.email_nombre or '—' }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('btnProbar').addEventListener('click', async function() {
+    const correo = document.getElementById('correoProeba').value.trim();
+    const result = document.getElementById('resultadoPrueba');
+    if (!correo) { result.innerHTML = '<div class="alert alert-warning py-2 small">Ingresa un correo.</div>'; return; }
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
+    try {
+        const r = await fetch('/configuracion/probar', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({correo})
+        });
+        const d = await r.json();
+        result.innerHTML = `<div class="alert alert-${d.success?'success':'danger'} py-2 small">
+            <i class="bi bi-${d.success?'check-circle':'x-circle'} me-1"></i>${d.message}</div>`;
+    } catch(e) {
+        result.innerHTML = '<div class="alert alert-danger py-2 small">Error de conexión.</div>';
+    } finally {
+        this.disabled = false;
+        this.innerHTML = '<i class="bi bi-send"></i> Enviar prueba';
+    }
+});
+</script>
+{% endblock %}
