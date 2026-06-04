@@ -61,6 +61,7 @@
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('extraer') }}"><i class="bi bi-cloud-arrow-up me-1"></i>Extraer</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('historial') }}"><i class="bi bi-clock-history me-1"></i>Historial</a></li>
                 {% if session.get('rol') == 'admin' %}
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_usuarios') }}"><i class="bi bi-people me-1"></i>Usuarios</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('configuracion') }}"><i class="bi bi-gear me-1"></i>Configuración</a></li>
                 {% endif %}
             </ul>

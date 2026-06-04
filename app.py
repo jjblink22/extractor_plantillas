@@ -38,6 +38,71 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'extractor_secret_2024')
 
 # ── Configuración ────────────────────────────────────────────────────────────
+
+@app.route('/plantillas/<int:plantilla_id>/editar', methods=['POST'])
+@login_required()
+def editar_plantilla(plantilla_id):
+    nombre = request.form.get('nombre','').strip()
+    if not nombre:
+        return jsonify(success=False, message='El nombre es obligatorio.')
+    db_query("UPDATE plantillas SET nombre=%s, descripcion=%s, tipo_documento=%s, actualizado=NOW() WHERE id=%s",
+             (nombre, request.form.get('descripcion','').strip(),
+              request.form.get('tipo_documento','generico'), plantilla_id), commit=True)
+    return jsonify(success=True)
+
+@app.route('/plantillas/<int:plantilla_id>/eliminar', methods=['POST'])
+@login_required(roles=['admin'])
+def eliminar_plantilla(plantilla_id):
+    db_query("DELETE FROM plantillas WHERE id=%s", (plantilla_id,), commit=True)
+    flash('Plantilla eliminada.', 'success')
+    return redirect(url_for('lista_plantillas'))
+
+# ── Usuarios ──────────────────────────────────────────────────────────────────
+@app.route('/usuarios')
+@login_required(roles=['admin'])
+def admin_usuarios():
+    usuarios = db_query("SELECT id,username,nombre,rol,creado FROM usuarios ORDER BY nombre", fetchall=True) or []
+    return render_template('admin_usuarios.html', usuarios=usuarios)
+
+@app.route('/usuarios/crear', methods=['POST'])
+@login_required(roles=['admin'])
+def crear_usuario():
+    username = request.form.get('username','').strip()
+    nombre   = request.form.get('nombre','').strip()
+    password = request.form.get('password','').strip()
+    rol      = request.form.get('rol','usuario')
+    if not all([username, nombre, password]):
+        flash('Todos los campos son obligatorios.', 'danger')
+        return redirect(url_for('admin_usuarios'))
+    if db_query("SELECT id FROM usuarios WHERE username=%s", (username,), fetchone=True):
+        flash(f'El usuario "{username}" ya existe.', 'danger')
+        return redirect(url_for('admin_usuarios'))
+    db_query("INSERT INTO usuarios (username,password,nombre,rol) VALUES (%s,%s,%s,%s)",
+             (username, generate_password_hash(password), nombre, rol), commit=True)
+    flash(f'Usuario "{nombre}" creado.', 'success')
+    return redirect(url_for('admin_usuarios'))
+
+@app.route('/usuarios/<int:user_id>/eliminar', methods=['POST'])
+@login_required(roles=['admin'])
+def eliminar_usuario(user_id):
+    if user_id == session.get('user_id'):
+        flash('No puedes eliminar tu propio usuario.', 'danger')
+        return redirect(url_for('admin_usuarios'))
+    db_query("DELETE FROM usuarios WHERE id=%s", (user_id,), commit=True)
+    flash('Usuario eliminado.', 'success')
+    return redirect(url_for('admin_usuarios'))
+
+@app.route('/usuarios/<int:user_id>/cambiar_password', methods=['POST'])
+@login_required(roles=['admin'])
+def cambiar_password(user_id):
+    nueva = request.form.get('password','').strip()
+    if len(nueva) < 6:
+        flash('La contraseña debe tener al menos 6 caracteres.', 'danger')
+        return redirect(url_for('admin_usuarios'))
+    db_query("UPDATE usuarios SET password=%s WHERE id=%s",
+             (generate_password_hash(nueva), user_id), commit=True)
+    flash('Contraseña actualizada.', 'success')
+    return redirect(url_for('admin_usuarios'))
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -148,11 +213,13 @@ def init_db():
 
     # Valores por defecto de configuración
     config_defaults = [
-        ('smtp_server',  os.getenv('SMTP_SERVER', '')),
-        ('smtp_port',    os.getenv('SMTP_PORT', '587')),
-        ('email_user',   os.getenv('EMAIL_USER', '')),
-        ('email_pass',   os.getenv('EMAIL_PASS', '')),
-        ('email_nombre', os.getenv('EMAIL_NOMBRE', 'Extractor de Documentos')),
+        ('smtp_server',    os.getenv('SMTP_SERVER', '')),
+        ('smtp_port',      os.getenv('SMTP_PORT', '587')),
+        ('email_user',     os.getenv('EMAIL_USER', '')),
+        ('email_pass',     os.getenv('EMAIL_PASS', '')),
+        ('email_nombre',   os.getenv('EMAIL_NOMBRE', 'Extractor de Documentos')),
+        ('plantilla_asunto', 'Documento: {archivo}'),
+        ('plantilla_cuerpo', 'Estimado/a {cliente},\n\nAdjunto encontrará el documento solicitado.\n\nSaludos cordiales.'),
     ]
     for clave, valor in config_defaults:
         try:
@@ -310,11 +377,12 @@ def guardar_campo(plantilla_id):
         orden = (db_query("SELECT COUNT(*) as n FROM plantilla_campos WHERE plantilla_id=%s",
                           (plantilla_id,), fetchone=True) or {}).get('n', 0)
         row = db_query("""INSERT INTO plantilla_campos
-                (plantilla_id, nombre_campo, etiqueta, tipo_campo,
+                (plantilla_id, nombre_campo, etiqueta, tipo_campo, es_tabla,
                  pagina, x0, y0, x1, y1, patron_validacion, post_proceso, orden)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
                 (plantilla_id, data['nombre_campo'], data['etiqueta'],
-                 data.get('tipo_campo','texto'), data.get('pagina',1),
+                 data.get('tipo_campo','texto'), data.get('es_tabla', False),
+                 data.get('pagina',1),
                  data['x0'], data['y0'], data['x1'], data['y1'],
                  data.get('patron_validacion'), data.get('post_proceso'), orden),
                 fetchone=True, commit=True)
@@ -405,15 +473,21 @@ def aplicar_plantilla(pdf_path, plantilla_id):
             try:
                 pagina = pdf.pages[campo['pagina'] - 1]
                 zona   = pagina.crop((campo['x0'], campo['y0'], campo['x1'], campo['y1']))
-                texto  = (zona.extract_text() or '').strip()
-                if campo['post_proceso']:
-                    m = re.search(campo['post_proceso'], texto)
-                    texto = m.group(1) if m else texto
-                if campo['patron_validacion'] and texto:
-                    ok = bool(re.search(campo['patron_validacion'], texto))
-                    confianza[campo['nombre_campo']] = 'ok' if ok else 'revisar'
+                if campo['es_tabla']:
+                    tabla = zona.extract_table() or []
+                    filas = [row for row in tabla if any(c and str(c).strip() for c in row)]
+                    texto = json.dumps(filas, ensure_ascii=False)
+                    confianza[campo['nombre_campo']] = 'ok' if filas else 'vacio'
                 else:
-                    confianza[campo['nombre_campo']] = 'ok' if texto else 'vacio'
+                    texto = (zona.extract_text() or '').strip()
+                    if campo['post_proceso'] and texto:
+                        m = re.search(campo['post_proceso'], texto)
+                        texto = m.group(1) if m else texto
+                    if campo['patron_validacion'] and texto:
+                        ok = bool(re.search(campo['patron_validacion'], texto))
+                        confianza[campo['nombre_campo']] = 'ok' if ok else 'revisar'
+                    else:
+                        confianza[campo['nombre_campo']] = 'ok' if texto else 'vacio'
                 resultados[campo['nombre_campo']] = texto
             except Exception as e:
                 resultados[campo['nombre_campo']] = None
@@ -472,23 +546,86 @@ def enviar_extraido():
 @login_required(roles=['admin'])
 def configuracion():
     if request.method == 'POST':
-        set_config('smtp_server',  request.form.get('smtp_server','').strip())
-        set_config('smtp_port',    request.form.get('smtp_port','587').strip())
-        set_config('email_user',   request.form.get('email_user','').strip())
-        set_config('email_nombre', request.form.get('email_nombre','').strip())
-        if request.form.get('email_pass','').strip():
-            set_config('email_pass', request.form.get('email_pass').strip())
-        flash('Configuración guardada correctamente.', 'success')
+        seccion = request.form.get('seccion','smtp')
+        if seccion == 'smtp':
+            set_config('smtp_server',  request.form.get('smtp_server','').strip())
+            set_config('smtp_port',    request.form.get('smtp_port','587').strip())
+            set_config('email_user',   request.form.get('email_user','').strip())
+            set_config('email_nombre', request.form.get('email_nombre','').strip())
+            if request.form.get('email_pass','').strip():
+                set_config('email_pass', request.form.get('email_pass').strip())
+        elif seccion == 'plantillas':
+            set_config('plantilla_asunto', request.form.get('plantilla_asunto','').strip())
+            set_config('plantilla_cuerpo', request.form.get('plantilla_cuerpo','').strip())
+        flash('Configuración guardada.', 'success')
         return redirect(url_for('configuracion'))
 
-    cfg = {
-        'smtp_server':  get_config('smtp_server'),
-        'smtp_port':    get_config('smtp_port', '587'),
-        'email_user':   get_config('email_user'),
-        'email_pass':   get_config('email_pass'),
-        'email_nombre': get_config('email_nombre', 'Extractor de Documentos'),
-    }
+    cfg = {k: get_config(k) for k in
+           ['smtp_server','smtp_port','email_user','email_pass','email_nombre',
+            'plantilla_asunto','plantilla_cuerpo']}
+    cfg.setdefault('smtp_port', '587')
+    cfg.setdefault('email_nombre', 'Extractor de Documentos')
+    cfg.setdefault('plantilla_asunto', 'Documento: {archivo}')
+    cfg.setdefault('plantilla_cuerpo', 'Estimado/a {cliente},\n\nAdjunto encontrará el documento solicitado.\n\nSaludos cordiales.')
     return render_template('configuracion.html', cfg=cfg)
+
+
+@app.route('/extraer/enviar_masivo', methods=['POST'])
+@login_required()
+def enviar_masivo():
+    """Envía múltiples PDFs extraídos en un solo request."""
+    items = request.get_json()
+    resultados = []
+    for item in items:
+        correo = item.get('correo','').strip()
+        pdf_path = item.get('pdf_path','')
+        archivo  = item.get('archivo_nombre','documento.pdf')
+        datos    = item.get('datos', {})
+
+        asunto_tpl = get_config('plantilla_asunto', 'Documento: {archivo}')
+        cuerpo_tpl = get_config('plantilla_cuerpo', 'Estimado/a {cliente},\n\nAdjunto el documento.\n\nSaludos.')
+        vars_tpl = {
+            'archivo': archivo,
+            'cliente': datos.get('cliente', datos.get('nombre_cliente', datos.get('razon_social', ''))),
+            **{k: v or '' for k,v in datos.items()}
+        }
+        try:
+            asunto = asunto_tpl.format(**vars_tpl)
+            cuerpo = cuerpo_tpl.format(**vars_tpl)
+        except Exception:
+            asunto = asunto_tpl
+            cuerpo = cuerpo_tpl
+
+        if not correo or not pdf_path or not os.path.exists(pdf_path):
+            resultados.append({'archivo': archivo, 'status': 'sin_correo'})
+            continue
+
+        smtp_server = get_config('smtp_server')
+        smtp_port   = int(get_config('smtp_port','587'))
+        email_user  = get_config('email_user')
+        email_pass  = get_config('email_pass')
+        email_nombre= get_config('email_nombre','Extractor de Documentos')
+        try:
+            msg = MIMEMultipart()
+            msg['From']    = formataddr((str(Header(email_nombre,'utf-8')), email_user))
+            msg['To']      = correo
+            msg['Subject'] = Header(asunto,'utf-8')
+            msg.attach(MIMEText(cuerpo,'plain','utf-8'))
+            with open(pdf_path,'rb') as f:
+                part = MIMEBase('application','octet-stream')
+                part.set_payload(f.read())
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename="{archivo}"')
+                msg.attach(part)
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()
+            server.login(email_user, email_pass)
+            server.send_message(msg)
+            server.quit()
+            resultados.append({'archivo': archivo, 'status': 'enviado', 'correo': correo})
+        except Exception as e:
+            resultados.append({'archivo': archivo, 'status': 'error', 'error': str(e)})
+    return jsonify(resultados=resultados)
 
 
 @app.route('/configuracion/probar', methods=['POST'])

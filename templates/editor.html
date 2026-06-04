@@ -163,6 +163,13 @@
                         <option value="rif">RIF venezolano</option>
                     </select>
                 </div>
+                <div class="mb-2 form-check">
+                    <input type="checkbox" class="form-check-input" id="campoEsTabla">
+                    <label class="form-check-label" for="campoEsTabla" style="font-size:0.82rem;">
+                        <strong>Zona de tabla</strong> — extrae múltiples filas
+                    </label>
+                    <div class="form-text">Usa esto cuando la zona contiene una tabla con varias filas (ej: detalle de facturas)</div>
+                </div>
                 <div class="mb-2">
                     <label class="form-label">Regex de validación (opcional)</label>
                     <input type="text" class="form-control form-control-sm" id="campoPatron" placeholder="Ej: [\d\-]+">
@@ -430,6 +437,7 @@ document.getElementById('btnGuardarCampo').addEventListener('click', async () =>
         id: campoEditandoId,
         etiqueta, nombre_campo: nombre,
         tipo_campo: document.getElementById('campoTipo').value,
+        es_tabla:   document.getElementById('campoEsTabla').checked,
         patron_validacion: document.getElementById('campoPatron').value,
         pagina: paginaActual,
         ...zonaActual
