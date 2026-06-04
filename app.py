@@ -9,7 +9,7 @@ import psycopg2
 import psycopg2.extras
 import pdfplumber
 
-load_dotenv()
+load_dotenv(encoding='latin-1')
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'extractor_secret_2024')
