@@ -1,4 +1,13 @@
-import os, json, re
+import os, sys, json, re
+
+# Forzar UTF-8 en Windows para evitar errores con mensajes de PostgreSQL en español
+os.environ['PYTHONUTF8'] = '1'
+os.environ['PGCLIENTENCODING'] = 'UTF8'
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 from flask import (Flask, render_template, request, redirect, url_for,
                    flash, jsonify, session, make_response, send_file)
 from werkzeug.utils import secure_filename
@@ -40,7 +49,10 @@ DB_CONFIG = {
 
 # ── Base de datos ────────────────────────────────────────────────────────────
 def get_db():
-    return psycopg2.connect(**DB_CONFIG)
+    return psycopg2.connect(
+        **DB_CONFIG,
+        options="-c lc_messages=en_US.UTF-8 -c client_encoding=UTF8"
+    )
 
 def db_query(query, params=None, fetchone=False, fetchall=False, commit=False):
     conn = None
