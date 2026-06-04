@@ -1,12 +1,8 @@
 import os, sys, json, re
 
-# Forzar UTF-8 en Windows para evitar errores con mensajes de PostgreSQL en español
-os.environ['PYTHONUTF8'] = '1'
+# Parchear encoding ANTES de importar psycopg2 para evitar error con PostgreSQL en español en Windows
 os.environ['PGCLIENTENCODING'] = 'UTF8'
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-if hasattr(sys.stderr, 'reconfigure'):
-    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+os.environ['LC_ALL'] = 'C'
 
 from flask import (Flask, render_template, request, redirect, url_for,
                    flash, jsonify, session, make_response, send_file)
