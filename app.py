@@ -45,10 +45,7 @@ DB_CONFIG = {
 
 # ── Base de datos ────────────────────────────────────────────────────────────
 def get_db():
-    return psycopg2.connect(
-        **DB_CONFIG,
-        options="-c lc_messages=en_US.UTF-8 -c client_encoding=UTF8"
-    )
+    return psycopg2.connect(**DB_CONFIG)
 
 def db_query(query, params=None, fetchone=False, fetchall=False, commit=False):
     conn = None
