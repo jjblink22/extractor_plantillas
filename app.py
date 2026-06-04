@@ -2030,7 +2030,7 @@ def enviar_masivo():
 
 @app.route('/configuracion/probar_extractor', methods=['POST'])
 @login_required(roles=['admin'])
-def probar_correo():
+def probar_correo_extractor():
     correo_dest = request.json.get('correo','').strip()
     if not correo_dest:
         return jsonify(success=False, message='Ingresa un correo de destino.')
