@@ -6,15 +6,15 @@
     .editor-layout { display:grid; grid-template-columns:1fr 340px; gap:20px; height:calc(100vh - 100px); }
     .pdf-panel { background:#fff; border-radius:12px; border:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column; }
     .pdf-toolbar { background:#1e3a5f; color:#fff; padding:10px 16px; display:flex; align-items:center; gap:12px; flex-shrink:0; }
-    .pdf-viewport { position:relative; flex:1; overflow:auto; background:#525659; display:flex; align-items:flex-start; justify-content:center; padding:20px; }
-    #pdfCanvas { display:block; box-shadow:0 4px 24px rgba(0,0,0,.4); }
-    #selectionOverlay { position:absolute; top:20px; left:50%; transform:translateX(-50%); cursor:crosshair; }
-    .zona-campo { position:absolute; border:2px solid #2e86de; background:rgba(46,134,222,.15); border-radius:3px; cursor:pointer; }
+    .pdf-viewport { position:relative; flex:1; overflow:auto; background:#525659; display:flex; align-items:flex-start; justify-content:center; padding:20px; cursor:crosshair; }
+    #pdfCanvas { display:block; box-shadow:0 4px 24px rgba(0,0,0,.4); position:relative; z-index:1; }
+    #zonasContainer { position:absolute; pointer-events:none; z-index:2; }
+    .zona-campo { position:absolute; border:2px solid #2e86de; background:rgba(46,134,222,.15); border-radius:3px; pointer-events:auto; cursor:pointer; }
     .zona-campo:hover { background:rgba(46,134,222,.3); }
     .zona-campo .zona-label { position:absolute; top:-22px; left:0; background:#2e86de; color:#fff; font-size:0.65rem; font-weight:600; padding:2px 6px; border-radius:3px; white-space:nowrap; }
     .zona-campo.seleccionada { border-color:#e74c3c; background:rgba(231,76,60,.15); }
     .zona-campo.seleccionada .zona-label { background:#e74c3c; }
-    #seleccionActual { position:absolute; border:2px dashed #f39c12; background:rgba(243,156,18,.1); pointer-events:none; display:none; }
+    #seleccionActual { position:absolute; border:2px dashed #f39c12; background:rgba(243,156,18,.1); pointer-events:none; display:none; z-index:3; }
 
     .config-panel { display:flex; flex-direction:column; gap:16px; overflow-y:auto; }
     .upload-zone { border:2px dashed #c7d2fe; border-radius:10px; padding:20px; text-align:center; cursor:pointer; transition:all .2s; background:#f8faff; }
@@ -74,14 +74,15 @@
             </select>
         </div>
         <div class="pdf-viewport" id="pdfViewport">
-            <div id="sinPdf" class="text-center py-5" style="color:#8a99a8;">
+            <div id="sinPdf" class="text-center py-5" style="color:#8a99a8;cursor:default;">
                 <i class="bi bi-cloud-arrow-up" style="font-size:3rem;display:block;margin-bottom:12px;"></i>
                 Sube un PDF de muestra para comenzar a definir zonas
             </div>
-            <canvas id="pdfCanvas" style="display:none;"></canvas>
-            <canvas id="selectionOverlay" style="display:none;position:absolute;top:20px;left:50%;transform:translateX(-50%);"></canvas>
-            <div id="zonasContainer" style="position:absolute;top:20px;left:50%;transform:translateX(-50%);pointer-events:auto;"></div>
-            <div id="seleccionActual"></div>
+            <div id="pdfWrapper" style="position:relative;display:none;">
+                <canvas id="pdfCanvas"></canvas>
+                <div id="zonasContainer" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
+                <div id="seleccionActual"></div>
+            </div>
         </div>
     </div>
 
@@ -198,17 +199,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 
 let pdfDoc = null, paginaActual = 1, totalPaginas = 1, escala = 1.5;
 let seleccionando = false, startX, startY;
-let zonaActual = null;  // {x0,y0,x1,y1} en coords PDF
+let zonaActual = null;
 let campoEditandoId = null;
-let camposData = {};  // id → datos del campo
-let pdfAncho = 0, pdfAlto = 0;
+let camposData = {};
 
-const canvas       = document.getElementById('pdfCanvas');
-const ctx          = canvas.getContext('2d');
-const overlay      = document.getElementById('selectionOverlay');
-const overlayCtx   = overlay.getContext('2d');
+const canvas      = document.getElementById('pdfCanvas');
+const ctx         = canvas.getContext('2d');
+const pdfWrapper  = document.getElementById('pdfWrapper');
 const zonasContainer = document.getElementById('zonasContainer');
-const selDiv       = document.getElementById('seleccionActual');
+const selDiv      = document.getElementById('seleccionActual');
 
 // ── Cargar PDF existente ──────────────────────────────────────────────────
 {% if plantilla.muestra_path %}
@@ -220,11 +219,14 @@ document.getElementById('inputPdfMuestra').addEventListener('change', async func
     if (!this.files.length) return;
     const fd = new FormData();
     fd.append('pdf_muestra', this.files[0]);
+    document.getElementById('labelPdfMuestra').textContent = 'Subiendo...';
     const r = await fetch("{{ url_for('subir_muestra', plantilla_id=plantilla.id) }}", {method:'POST',body:fd});
     const d = await r.json();
     if (d.success) {
-        document.getElementById('labelPdfMuestra').textContent = 'PDF cargado ✓';
+        document.getElementById('labelPdfMuestra').textContent = 'PDF cargado ✓ — clic para cambiar';
         cargarPdfDesdeUrl(d.pdf_url);
+    } else {
+        document.getElementById('labelPdfMuestra').textContent = 'Error al subir';
     }
 });
 
@@ -233,8 +235,7 @@ async function cargarPdfDesdeUrl(url) {
     totalPaginas = pdfDoc.numPages;
     paginaActual = 1;
     await renderizarPagina(paginaActual);
-    document.getElementById('pdfCanvas').style.display = 'block';
-    document.getElementById('selectionOverlay').style.display = 'block';
+    document.getElementById('pdfWrapper').style.display = 'block';
     document.getElementById('sinPdf').style.display = 'none';
     document.getElementById('btnNuevoCampo').disabled = false;
     actualizarInfoPagina();
@@ -245,19 +246,14 @@ async function renderizarPagina(num) {
     const vp = page.getViewport({ scale: escala });
     canvas.width  = vp.width;
     canvas.height = vp.height;
-    overlay.width  = vp.width;
-    overlay.height = vp.height;
-    pdfAncho = page.getViewport({scale:1}).width;
-    pdfAlto  = page.getViewport({scale:1}).height;
+    pdfWrapper.style.width  = vp.width + 'px';
+    pdfWrapper.style.height = vp.height + 'px';
     await page.render({ canvasContext: ctx, viewport: vp }).promise;
-    // Posicionar zonasContainer igual que el canvas
-    zonasContainer.style.width  = vp.width + 'px';
-    zonasContainer.style.height = vp.height + 'px';
-    document.getElementById('pdfNombre').textContent = `Página ${num}`;
+    document.getElementById('pdfNombre').textContent = `Página ${num} de ${totalPaginas}`;
     dibujarZonas();
 }
 
-// ── Paginación ────────────────────────────────────────────────────────────
+// ── Paginación y zoom ─────────────────────────────────────────────────────
 document.getElementById('btnPagAnt').addEventListener('click', () => {
     if (paginaActual > 1) { paginaActual--; renderizarPagina(paginaActual); actualizarInfoPagina(); }
 });
@@ -272,54 +268,56 @@ function actualizarInfoPagina() {
     document.getElementById('paginaInfo').textContent = `${paginaActual} / ${totalPaginas}`;
 }
 
-// ── Selección de zona arrastrando ─────────────────────────────────────────
-overlay.addEventListener('mousedown', e => {
-    if (!pdfDoc) return;
+// ── Selección arrastrando sobre el PDF ────────────────────────────────────
+pdfWrapper.addEventListener('mousedown', e => {
+    if (!pdfDoc || e.target.closest('.zona-campo')) return;
     seleccionando = true;
-    const r = overlay.getBoundingClientRect();
+    const r = pdfWrapper.getBoundingClientRect();
     startX = e.clientX - r.left;
     startY = e.clientY - r.top;
+    selDiv.style.left   = startX + 'px';
+    selDiv.style.top    = startY + 'px';
+    selDiv.style.width  = '0px';
+    selDiv.style.height = '0px';
     selDiv.style.display = 'block';
-    posicionarSelDiv(startX, startY, 0, 0);
+    e.preventDefault();
 });
 
-overlay.addEventListener('mousemove', e => {
+pdfWrapper.addEventListener('mousemove', e => {
     if (!seleccionando) return;
-    const r = overlay.getBoundingClientRect();
+    const r  = pdfWrapper.getBoundingClientRect();
     const cx = e.clientX - r.left;
     const cy = e.clientY - r.top;
-    const x = Math.min(startX, cx), y = Math.min(startY, cy);
-    const w = Math.abs(cx - startX),   h = Math.abs(cy - startY);
-    posicionarSelDiv(x, y, w, h);
+    const x  = Math.min(startX, cx);
+    const y  = Math.min(startY, cy);
+    selDiv.style.left   = x + 'px';
+    selDiv.style.top    = y + 'px';
+    selDiv.style.width  = Math.abs(cx - startX) + 'px';
+    selDiv.style.height = Math.abs(cy - startY) + 'px';
 });
 
-overlay.addEventListener('mouseup', e => {
+pdfWrapper.addEventListener('mouseup', e => {
     if (!seleccionando) return;
     seleccionando = false;
-    const r = overlay.getBoundingClientRect();
-    const ex = e.clientX - r.left, ey = e.clientY - r.top;
+    selDiv.style.display = 'none';
+    const r  = pdfWrapper.getBoundingClientRect();
+    const ex = e.clientX - r.left;
+    const ey = e.clientY - r.top;
     const px0 = Math.min(startX, ex) / escala;
     const py0 = Math.min(startY, ey) / escala;
     const px1 = Math.max(startX, ex) / escala;
     const py1 = Math.max(startY, ey) / escala;
-    if (Math.abs(px1-px0) < 5 || Math.abs(py1-py0) < 5) { selDiv.style.display='none'; return; }
+    if (Math.abs(px1-px0) < 5 || Math.abs(py1-py0) < 5) return;
     zonaActual = {x0:px0, y0:py0, x1:px1, y1:py1};
     document.getElementById('coordenadasInfo').textContent =
-        `x0:${px0.toFixed(1)} y0:${py0.toFixed(1)} x1:${px1.toFixed(1)} y1:${py1.toFixed(1)}`;
-    selDiv.style.display = 'none';
+        `x0:${px0.toFixed(1)} y0:${py0.toFixed(1)} x1:${px1.toFixed(1)} y1:${py1.toFixed(1)} — Pág ${paginaActual}`;
     document.getElementById('panelCampo').style.display = 'block';
 });
 
-function posicionarSelDiv(x, y, w, h) {
-    const vp = document.getElementById('pdfViewport').getBoundingClientRect();
-    const cv = canvas.getBoundingClientRect();
-    const offsetLeft = cv.left - vp.left + 20;  // 20 = padding del viewport
-    selDiv.style.left   = (offsetLeft + x) + 'px';
-    selDiv.style.top    = (20 + y) + 'px';       // 20 = padding top del viewport
-    selDiv.style.width  = w + 'px';
-    selDiv.style.height = h + 'px';
-    selDiv.style.display = 'block';
-}
+// evitar que el drag salga del wrapper
+pdfWrapper.addEventListener('mouseleave', () => {
+    if (seleccionando) { seleccionando = false; selDiv.style.display = 'none'; }
+});
 
 // ── Cargar campos existentes ───────────────────────────────────────────────
 {% for c in campos %}
