@@ -13,7 +13,7 @@
         {% if not plantillas %}
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            No hay plantillas disponibles. <a href="{{ url_for('nueva_plantilla') }}">Crea una primero</a>.
+            No hay plantillas disponibles. <a href="{{ url_for('nueva_plantilla_ext') }}">Crea una primero</a>.
         </div>
         {% else %}
         <form method="POST" enctype="multipart/form-data">

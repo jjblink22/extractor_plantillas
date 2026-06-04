@@ -1702,7 +1702,7 @@ def aplicar_plantilla_visual(pdf_path, plantilla_id):
 def lista_plantillas_ext():
     plantillas = db_query("""
         SELECT p.*, COUNT(e.id) as total_usos
-        FROM plantillas p
+        FROM plantillas_ext p
         LEFT JOIN extracciones e ON e.plantilla_id = p.id
         GROUP BY p.id ORDER BY p.nombre
     """, fetchall=True) or []
@@ -1715,7 +1715,7 @@ def editar_plantilla_ext(plantilla_id):
     if not nombre:
         flash('El nombre es obligatorio.', 'danger')
         return redirect(url_for('lista_plantillas_ext'))
-    db_query("UPDATE plantillas SET nombre=%s, descripcion=%s, tipo_documento=%s, actualizado=NOW() WHERE id=%s",
+    db_query("UPDATE plantillas_ext SET nombre=%s, descripcion=%s, tipo_documento=%s, actualizado=NOW() WHERE id=%s",
              (nombre, request.form.get('descripcion','').strip(),
               request.form.get('tipo_documento','generico'), plantilla_id), commit=True)
     flash('Plantilla actualizada.', 'success')
@@ -1724,7 +1724,7 @@ def editar_plantilla_ext(plantilla_id):
 @app.route('/extractor/plantillas/<int:plantilla_id>/eliminar', methods=['POST'])
 @login_required(roles=['admin'])
 def eliminar_plantilla_ext(plantilla_id):
-    db_query("DELETE FROM plantillas WHERE id=%s", (plantilla_id,), commit=True)
+    db_query("DELETE FROM plantillas_ext WHERE id=%s", (plantilla_id,), commit=True)
     flash('Plantilla eliminada.', 'success')
     return redirect(url_for('lista_plantillas_ext'))
 
@@ -1737,7 +1737,7 @@ def nueva_plantilla_ext():
             flash('El nombre es obligatorio.', 'danger')
             return redirect(request.url)
         pid = db_query("""
-            INSERT INTO plantillas (nombre, descripcion, tipo_documento)
+            INSERT INTO plantillas_ext (nombre, descripcion, tipo_documento)
             VALUES (%s, %s, %s) RETURNING id
         """, (nombre,
               request.form.get('descripcion','').strip(),
@@ -1752,7 +1752,7 @@ def nueva_plantilla_ext():
 @app.route('/extractor/plantillas/<int:plantilla_id>/editor')
 @login_required()
 def editor_plantilla_ext(plantilla_id):
-    plantilla = db_query("SELECT * FROM plantillas WHERE id=%s", (plantilla_id,), fetchone=True)
+    plantilla = db_query("SELECT * FROM plantillas_ext WHERE id=%s", (plantilla_id,), fetchone=True)
     if not plantilla:
         flash('Plantilla no encontrada.', 'danger')
         return redirect(url_for('lista_plantillas_ext'))
@@ -1771,7 +1771,7 @@ def subir_muestra_ext(plantilla_id):
     nombre = f"muestra_{plantilla_id}_{secure_filename(archivo.filename)}"
     path   = os.path.join(UPLOAD_FOLDER, nombre)
     archivo.save(path)
-    db_query("UPDATE plantillas SET muestra_path=%s WHERE id=%s",
+    db_query("UPDATE plantillas_ext SET muestra_path=%s WHERE id=%s",
              (path, plantilla_id), commit=True)
     # Obtener dimensiones de la primera página
     with pdfplumber.open(path) as pdf:
@@ -1785,7 +1785,7 @@ def subir_muestra_ext(plantilla_id):
 @app.route('/extractor/plantillas/<int:plantilla_id>/muestra_pdf')
 @login_required()
 def ver_muestra_pdf_ext(plantilla_id):
-    plantilla = db_query("SELECT muestra_path FROM plantillas WHERE id=%s",
+    plantilla = db_query("SELECT muestra_path FROM plantillas_ext WHERE id=%s",
                          (plantilla_id,), fetchone=True)
     if not plantilla or not plantilla['muestra_path']:
         return 'No hay PDF de muestra', 404
@@ -1833,7 +1833,7 @@ def eliminar_campo_ext(plantilla_id, campo_id):
 def preview_zona_ext(plantilla_id):
     """Extrae y devuelve el texto de una zona del PDF de muestra."""
     data     = request.get_json()
-    plantilla = db_query("SELECT muestra_path FROM plantillas WHERE id=%s",
+    plantilla = db_query("SELECT muestra_path FROM plantillas_ext WHERE id=%s",
                          (plantilla_id,), fetchone=True)
     if not plantilla or not plantilla['muestra_path']:
         return jsonify(texto=None, message='Sin PDF de muestra.')
@@ -1852,7 +1852,7 @@ def preview_zona_ext(plantilla_id):
 @login_required()
 def previsualizar_extraccion_ext(plantilla_id):
     """Prueba la plantilla contra su PDF de muestra."""
-    plantilla = db_query("SELECT * FROM plantillas WHERE id=%s", (plantilla_id,), fetchone=True)
+    plantilla = db_query("SELECT * FROM plantillas_ext WHERE id=%s", (plantilla_id,), fetchone=True)
     if not plantilla or not plantilla['muestra_path']:
         return jsonify(success=False, message='No hay PDF de muestra cargado.')
     resultado, _ = aplicar_plantilla_visual(plantilla['muestra_path'], plantilla_id)
@@ -1862,7 +1862,7 @@ def previsualizar_extraccion_ext(plantilla_id):
 @app.route('/extractor/extraer', methods=['GET', 'POST'])
 @login_required()
 def extraer_plantilla():
-    plantillas = db_query("SELECT * FROM plantillas WHERE activa=true ORDER BY nombre",
+    plantillas = db_query("SELECT * FROM plantillas_ext WHERE activa=true ORDER BY nombre",
                           fetchall=True) or []
     if request.method == 'POST':
         plantilla_id = request.form.get('plantilla_id')
@@ -1878,7 +1878,7 @@ def extraer_plantilla():
             try:
                 datos, confianza = aplicar_plantilla_visual(path, int(plantilla_id))
                 estado = 'exitoso' if all(v != 'revisar' for v in confianza.values()) else 'revisar'
-                db_query("""INSERT INTO extracciones
+                db_query("""INSERT INTO extracciones_ext
                     (plantilla_id, archivo_nombre, usuario_id, usuario_nombre, datos, estado)
                     VALUES (%s,%s,%s,%s,%s,%s)""",
                     (plantilla_id, archivo.filename,
@@ -2069,7 +2069,7 @@ def probar_correo_extractor():
 def historial_extractor():
     filas = db_query("""
         SELECT e.*, p.nombre as plantilla_nombre
-        FROM extracciones e
+        FROM extracciones_ext e
         LEFT JOIN plantillas p ON p.id = e.plantilla_id
         ORDER BY e.fecha DESC LIMIT 200
     """, fetchall=True) or []
@@ -2082,7 +2082,7 @@ def palabras_pdf():
     """Devuelve todas las palabras del PDF con sus coordenadas para el editor visual."""
     plantilla_id = request.json.get('plantilla_id')
     pagina_num   = request.json.get('pagina', 1)
-    plantilla    = db_query("SELECT muestra_path FROM plantillas WHERE id=%s",
+    plantilla    = db_query("SELECT muestra_path FROM plantillas_ext WHERE id=%s",
                             (plantilla_id,), fetchone=True)
     if not plantilla or not plantilla['muestra_path']:
         return jsonify(success=False, message='No hay PDF de muestra.')

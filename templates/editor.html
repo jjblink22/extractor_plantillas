@@ -39,7 +39,7 @@
 
 {% block content %}
 <div class="d-flex align-items-center gap-3 mb-3">
-    <a href="{{ url_for('lista_plantillas') }}" class="btn btn-outline-secondary btn-sm">
+    <a href="{{ url_for('lista_plantillas_ext') }}" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-left"></i>
     </a>
     <div>
@@ -228,7 +228,7 @@ const selDiv      = document.getElementById('seleccionActual');
 
 // ── Cargar PDF existente ──────────────────────────────────────────────────
 {% if plantilla.muestra_path %}
-cargarPdfDesdeUrl("{{ url_for('ver_muestra_pdf', plantilla_id=plantilla.id) }}");
+cargarPdfDesdeUrl("{{ url_for('ver_muestra_pdf_ext', plantilla_id=plantilla.id) }}");
 {% endif %}
 
 // ── Subir nuevo PDF ───────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ document.getElementById('inputPdfMuestra').addEventListener('change', async func
     const fd = new FormData();
     fd.append('pdf_muestra', this.files[0]);
     document.getElementById('labelPdfMuestra').textContent = 'Subiendo...';
-    const r = await fetch("{{ url_for('subir_muestra', plantilla_id=plantilla.id) }}", {method:'POST',body:fd});
+    const r = await fetch("{{ url_for('subir_muestra_ext', plantilla_id=plantilla.id) }}", {method:'POST',body:fd});
     const d = await r.json();
     if (d.success) {
         document.getElementById('labelPdfMuestra').textContent = 'PDF cargado ✓ — clic para cambiar';

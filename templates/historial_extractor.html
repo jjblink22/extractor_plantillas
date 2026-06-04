@@ -57,7 +57,7 @@
             <h5 class="mb-0">Filtros</h5>
         </div>
         <div class="card-body">
-            <form id="filter-form" method="GET" action="{{ url_for('historial') }}">
+            <form id="filter-form" method="GET" action="{{ url_for('historial_extractor') }}">
                 <div class="filter-row">
                     <div class="filter-group">
                         <label for="fecha_inicio" class="form-label">Fecha Inicio:</label>
@@ -128,7 +128,7 @@
                     <i class="fas fa-filter"></i> Filtrar
                 </button>
                 
-                <a href="{{ url_for('historial') }}" class="btn btn-secondary">
+                <a href="{{ url_for('historial_extractor') }}" class="btn btn-secondary">
                     <i class="fas fa-times"></i> Limpiar
                 </a>
                 
