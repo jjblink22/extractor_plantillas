@@ -1969,33 +1969,6 @@ def enviar_extraido():
         return jsonify(success=False, message=str(e))
 
 
-@app.route('/configuracion', methods=['GET', 'POST'])
-@login_required(roles=['admin'])
-def configuracion():
-    if request.method == 'POST':
-        seccion = request.form.get('seccion','smtp')
-        if seccion == 'smtp':
-            set_config('smtp_server',  request.form.get('smtp_server','').strip())
-            set_config('smtp_port',    request.form.get('smtp_port','587').strip())
-            set_config('email_user',   request.form.get('email_user','').strip())
-            set_config('email_nombre', request.form.get('email_nombre','').strip())
-            if request.form.get('email_pass','').strip():
-                set_config('email_pass', request.form.get('email_pass').strip())
-        elif seccion == 'plantillas':
-            set_config('plantilla_asunto', request.form.get('plantilla_asunto','').strip())
-            set_config('plantilla_cuerpo', request.form.get('plantilla_cuerpo','').strip())
-        flash('Configuración guardada.', 'success')
-        return redirect(url_for('configuracion'))
-
-    cfg = {k: get_config(k) for k in
-           ['smtp_server','smtp_port','email_user','email_pass','email_nombre',
-            'plantilla_asunto','plantilla_cuerpo']}
-    cfg.setdefault('smtp_port', '587')
-    cfg.setdefault('email_nombre', 'Extractor de Documentos')
-    cfg.setdefault('plantilla_asunto', 'Documento: {archivo}')
-    cfg.setdefault('plantilla_cuerpo', 'Estimado/a {cliente},\n\nAdjunto encontrará el documento solicitado.\n\nSaludos cordiales.')
-    return render_template('configuracion.html', cfg=cfg)
-
 
 @app.route('/extractor/enviar_masivo', methods=['POST'])
 @login_required()
@@ -2055,7 +2028,7 @@ def enviar_masivo():
     return jsonify(resultados=resultados)
 
 
-@app.route('/configuracion/probar', methods=['POST'])
+@app.route('/configuracion/probar_extractor', methods=['POST'])
 @login_required(roles=['admin'])
 def probar_correo():
     correo_dest = request.json.get('correo','').strip()
