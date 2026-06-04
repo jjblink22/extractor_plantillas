@@ -60,6 +60,9 @@
         <div class="pdf-toolbar">
             <i class="bi bi-file-earmark-pdf"></i>
             <span id="pdfNombre" style="font-size:0.82rem;flex:1;">Sin PDF cargado</span>
+            <span id="hintArrastrar" style="display:none;font-size:0.75rem;background:#27ae60;color:#fff;padding:3px 10px;border-radius:20px;animation:fadeIn .3s;">
+                ✓ Guardado — arrastra para agregar otro campo
+            </span>
             <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:none;" id="btnPagAnt">
                 <i class="bi bi-chevron-left"></i>
             </button>
@@ -308,10 +311,18 @@ pdfWrapper.addEventListener('mouseup', e => {
     const px1 = Math.max(startX, ex) / escala;
     const py1 = Math.max(startY, ey) / escala;
     if (Math.abs(px1-px0) < 5 || Math.abs(py1-py0) < 5) return;
+    // Nueva zona — limpiar campo anterior y mostrar panel
     zonaActual = {x0:px0, y0:py0, x1:px1, y1:py1};
+    if (!campoEditandoId) {
+        // Campo nuevo: limpiar formulario
+        document.getElementById('campoEtiqueta').value = '';
+        document.getElementById('campoNombre').value   = '';
+        document.getElementById('campoPatron').value   = '';
+    }
     document.getElementById('coordenadasInfo').textContent =
         `x0:${px0.toFixed(1)} y0:${py0.toFixed(1)} x1:${px1.toFixed(1)} y1:${py1.toFixed(1)} — Pág ${paginaActual}`;
     document.getElementById('panelCampo').style.display = 'block';
+    document.getElementById('campoEtiqueta').focus();
 });
 
 // evitar que el drag salga del wrapper
@@ -400,8 +411,18 @@ document.getElementById('btnGuardarCampo').addEventListener('click', async () =>
         camposData[d.id] = {...payload, id:d.id};
         actualizarListaCampos();
         dibujarZonas();
+        // Limpiar y dejar listo para el siguiente campo
+        campoEditandoId = null;
+        zonaActual = null;
+        document.getElementById('campoEtiqueta').value = '';
+        document.getElementById('campoNombre').value   = '';
+        document.getElementById('campoPatron').value   = '';
         document.getElementById('panelCampo').style.display = 'none';
-        campoEditandoId = null; zonaActual = null;
+        document.querySelectorAll('.campo-item').forEach(i => i.classList.remove('activo'));
+        // Mostrar hint de que puede arrastrar de nuevo
+        const hint = document.getElementById('hintArrastrar');
+        hint.style.display = 'block';
+        setTimeout(() => hint.style.display = 'none', 3000);
     }
 });
 
