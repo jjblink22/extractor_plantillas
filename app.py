@@ -4,12 +4,23 @@ from flask import (Flask, render_template, request, redirect, url_for,
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from dotenv import load_dotenv
 import psycopg2
 import psycopg2.extras
 import pdfplumber
 
-load_dotenv(encoding='latin-1')
+# Cargar .env manualmente (compatible con cualquier codificación Windows)
+def cargar_env(path='.env'):
+    try:
+        with open(path, 'r', encoding='latin-1') as f:
+            for linea in f:
+                linea = linea.strip()
+                if linea and '=' in linea and not linea.startswith('#'):
+                    clave, valor = linea.split('=', 1)
+                    os.environ.setdefault(clave.strip(), valor.strip())
+    except FileNotFoundError:
+        pass
+
+cargar_env()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'extractor_secret_2024')
