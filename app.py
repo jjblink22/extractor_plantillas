@@ -97,6 +97,12 @@ def init_db():
                             agente_retencion TEXT,
                             monto_retenido REAL,
                             estado TEXT)'''),
+        ("sync_usuarios_cols",
+         "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS nombre_completo TEXT"),
+        ("sync_usuarios_email",
+         "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email TEXT"),
+        ("sync_usuarios_data",
+         "UPDATE usuarios SET nombre_completo = nombre WHERE nombre_completo IS NULL"),
         ("fix_fk_usuario_set_null", """
             ALTER TABLE historial_envios
             DROP CONSTRAINT IF EXISTS historial_envios_usuario_id_fkey;
@@ -890,7 +896,7 @@ def login():
         if user:
             session['user_id'] = user['id']
             session['username'] = user['username']
-            session['nombre'] = user['nombre_completo']
+            session['nombre'] = user.get('nombre_completo') or user.get('nombre', '')
             session['rol'] = user['rol']
             return redirect(url_for('upload'))
         else:
