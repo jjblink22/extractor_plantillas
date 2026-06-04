@@ -2112,4 +2112,4 @@ if __name__ == '__main__':
     # La siguiente sección es para ejecutar en modo de PRODUCCIÓN con Waitress
     from waitress import serve
     print("Iniciando servidor de producción en http://0.0.0.0:8080")
-    serve(app, host='0.0.0.0', port=8080, threads=16, connection_limit=100)
+    serve(app, host='0.0.0.0', port=8081, threads=16, connection_limit=100)
