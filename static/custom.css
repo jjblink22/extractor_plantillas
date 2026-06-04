@@ -1,0 +1,328 @@
+/* ============================================================
+   SISTEMA DE COMPROBANTES — Estilos Globales
+   Principio: aire, jerarquía, legibilidad
+   ============================================================ */
+
+/* --- Google Font --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* --- Variables globales --- */
+:root {
+    --primary:       #1e3a5f;   /* Azul marino profundo */
+    --primary-light: #2d5080;   /* Navbar hover */
+    --accent:        #2e86de;   /* Azul acción */
+    --accent-hover:  #1a6bbf;
+    --success:       #27ae60;
+    --warning:       #f39c12;
+    --danger:        #e74c3c;
+    --text-main:     #1a1a2e;
+    --text-secondary:#5a6a7a;
+    --text-muted:    #8a99a8;
+    --bg-body:       #f0f4f8;   /* Gris azulado muy suave */
+    --bg-card:       #ffffff;
+    --bg-table-head: #1e3a5f;
+    --border:        #dde3ea;
+    --shadow-sm:     0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md:     0 4px 20px rgba(0,0,0,0.09);
+    --shadow-lg:     0 8px 32px rgba(0,0,0,0.12);
+    --radius:        10px;
+    --radius-lg:     14px;
+}
+
+/* --- Reset y base --- */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    font-size: 0.925rem;
+    line-height: 1.6;
+    padding-top: 68px;
+}
+
+/* --- Navbar --- */
+.navbar {
+    background: linear-gradient(135deg, var(--primary) 0%, #162d4a 100%) !important;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.22);
+    padding: 0 1.5rem;
+    min-height: 62px;
+}
+
+.navbar-brand img { max-height: 38px; }
+
+.navbar-brand-text {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+    color: #fff !important;
+}
+
+.nav-link {
+    font-weight: 500;
+    font-size: 0.88rem;
+    padding: 0.5rem 1rem !important;
+    border-radius: 6px;
+    margin: 0 2px;
+    color: rgba(255,255,255,0.82) !important;
+    transition: all 0.2s ease;
+    letter-spacing: 0.01em;
+}
+
+.nav-link:hover, .nav-link.active {
+    background-color: rgba(255,255,255,0.14) !important;
+    color: #fff !important;
+}
+
+.nav-link i { margin-right: 6px; font-size: 0.9rem; }
+
+.user-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-decoration: none;
+    border: 2px solid rgba(255,255,255,0.25);
+    transition: border-color 0.2s;
+}
+.user-avatar:hover { border-color: rgba(255,255,255,0.6); }
+
+.user-name  { font-weight: 600; font-size: 0.85rem; color: #fff; }
+.user-role  { font-size: 0.75rem; color: rgba(255,255,255,0.65); }
+
+/* --- Layout principal --- */
+.main-container {
+    padding: 28px 32px;
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* --- Cards --- */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease;
+}
+.card:hover { box-shadow: var(--shadow-md); }
+
+.card-header {
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 1.4rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+}
+
+/* Card header sin color de fondo propio (hereda bg-primary, bg-success, etc.) */
+.card-header:not([class*="bg-"]) {
+    background: #f8fafc;
+    color: var(--text-main);
+}
+
+.card-body { padding: 1.4rem; }
+
+/* --- Tablas --- */
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
+}
+
+.table thead:not(.table-light):not(.table-secondary) th {
+    background-color: var(--bg-table-head) !important;
+    color: #fff !important;
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 13px 16px !important;
+    border: none !important;
+    white-space: nowrap;
+}
+
+/* thead con table-light también recibe buen padding */
+.table thead th {
+    padding: 13px 16px !important;
+    font-weight: 600;
+    font-size: 0.82rem;
+    border: none !important;
+    white-space: nowrap;
+}
+
+.table thead th:first-child { border-radius: var(--radius) 0 0 0; }
+.table thead th:last-child  { border-radius: 0 var(--radius) 0 0; }
+
+.table tbody td {
+    padding: 13px 16px !important;
+    vertical-align: middle;
+    border-bottom: 1px solid #edf1f5;
+    color: var(--text-main);
+}
+
+.table tbody tr:last-child td { border-bottom: none; }
+
+.table-hover tbody tr:hover td {
+    background-color: #f5f8ff;
+}
+
+.table tfoot th, .table tfoot td {
+    padding: 13px 16px !important;
+    font-weight: 700;
+    border-top: 2px solid rgba(0,0,0,0.15);
+}
+
+/* Tfoot claro (sin clase table-dark) */
+.table tfoot:not(.table-dark) th,
+.table tfoot:not(.table-dark) td {
+    background-color: #eef2f7;
+    color: var(--text-main);
+}
+
+/* Tabla ocupa todo el ancho disponible */
+.table-responsive { width: 100%; }
+.table { width: 100%; min-width: 600px; }
+
+/* --- Badges --- */
+.badge {
+    font-weight: 500;
+    font-size: 0.72rem;
+    padding: 0.35em 0.7em;
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+}
+
+/* --- Botones --- */
+.btn {
+    font-weight: 500;
+    font-size: 0.875rem;
+    border-radius: 7px;
+    padding: 0.45rem 1.1rem;
+    transition: all 0.2s ease;
+    letter-spacing: 0.01em;
+}
+.btn-sm { padding: 0.3rem 0.75rem; font-size: 0.8rem; }
+
+.btn-primary {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(46,134,222,0.35);
+}
+
+.btn-success:hover, .btn-warning:hover, .btn-danger:hover, .btn-secondary:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* --- Formularios --- */
+.form-control, .form-select {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.875rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(46,134,222,0.15);
+}
+
+.form-label {
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+}
+
+/* --- Alertas --- */
+.alert {
+    border: none;
+    border-radius: var(--radius);
+    padding: 0.9rem 1.2rem;
+    font-size: 0.875rem;
+    border-left: 4px solid transparent;
+}
+.alert-success { background: #edfaf3; border-left-color: var(--success); color: #1d6e45; }
+.alert-danger   { background: #fef0ef; border-left-color: var(--danger);  color: #9b2318; }
+.alert-warning  { background: #fef8ec; border-left-color: var(--warning); color: #7d5a0a; }
+.alert-info     { background: #eef6ff; border-left-color: var(--accent);  color: #174c80; }
+
+/* --- Modales --- */
+.modal-content {
+    border: none;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+.modal-header {
+    padding: 1.1rem 1.4rem;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.modal-body    { padding: 1.4rem; }
+.modal-footer  { padding: 1rem 1.4rem; border-top: 1px solid var(--border); }
+
+/* --- Input group --- */
+.input-group-text {
+    border: 1px solid var(--border);
+    background: #f8fafc;
+    font-size: 0.875rem;
+}
+
+/* --- Dropdown --- */
+.dropdown-menu {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    font-size: 0.875rem;
+    padding: 0.4rem;
+}
+.dropdown-item {
+    border-radius: 6px;
+    padding: 0.45rem 0.85rem;
+}
+.dropdown-item:hover { background-color: #f0f4ff; color: var(--accent); }
+
+/* --- Page header utility --- */
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+.page-header h1, .page-header h2 {
+    font-weight: 700;
+    color: var(--primary);
+    margin: 0;
+    font-size: 1.4rem;
+}
+.page-header .logo { max-height: 48px; }
+
+/* --- Scroll personalizado --- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f0f4f8; }
+::-webkit-scrollbar-thumb { background: #b0bec5; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* --- Responsive --- */
+@media (max-width: 992px) {
+    .user-info { display: none; }
+    .main-container { padding: 16px; }
+}
+@media (max-width: 768px) {
+    .navbar-brand-text { display: none; }
+    .table thead th, .table tbody td { padding: 10px 12px !important; }
+}

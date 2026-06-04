@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %} — Proceso Completado{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height:60vh;">
+    <div class="card text-center" style="max-width:520px;width:100%;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.10);">
+        <div class="card-body py-5 px-4">
+            <div class="mb-3">
+                <i class="bi bi-check-circle-fill" style="font-size:3.5rem;color:#27ae60;"></i>
+            </div>
+            <h4 class="fw-bold mb-2" style="color:#1e3a5f;">Revisión Individual Completada</h4>
+            <p class="text-muted mb-4">
+                Todos los comprobantes del lote han sido procesados.<br>
+                Puedes revisar el detalle completo en el historial.
+            </p>
+            <div class="d-flex flex-column gap-2">
+                <a href="{{ url_for('historial') }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-clock-history me-2"></i>Ver Historial de Envíos
+                </a>
+                <a href="{{ url_for('upload') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-house-door me-1"></i>Volver al Inicio
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %} — Usuarios{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="p-2 rounded-3" style="background:#eef2ff;"><i class="bi bi-people-fill fs-4" style="color:#2e86de;"></i></div>
+        <div><h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Usuarios</h2>
+        <p class="text-muted mb-0 small">Gestión de acceso al sistema</p></div>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+        <i class="bi bi-person-plus me-1"></i>Nuevo usuario
+    </button>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
+            <tbody>
+            {% for u in usuarios %}
+            <tr>
+                <td class="fw-semibold">{{ u.nombre }}</td>
+                <td class="text-muted small font-monospace">{{ u.username }}</td>
+                <td>
+                    <span class="badge" style="background:{% if u.rol=='admin' %}#1e3a5f{% else %}#6c757d{% endif %};">
+                        {{ u.rol }}
+                    </span>
+                </td>
+                <td class="text-muted small">{{ u.creado.strftime('%d/%m/%Y') if u.creado else '—' }}</td>
+                <td>
+                    <button class="btn btn-outline-secondary btn-sm me-1"
+                            data-bs-toggle="modal" data-bs-target="#modalPassword"
+                            data-user-id="{{ u.id }}" data-user-nombre="{{ u.nombre }}">
+                        <i class="bi bi-key"></i>
+                    </button>
+                    {% if u.id != session.get('user_id') %}
+                    <form method="POST" action="{{ url_for('eliminar_usuario', user_id=u.id) }}" class="d-inline"
+                          onsubmit="return confirm('¿Eliminar usuario {{ u.nombre }}?')">
+                        <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal nuevo usuario -->
+<div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+        <div class="modal-content" style="border:none;border-radius:14px;">
+            <div class="modal-header" style="background:linear-gradient(135deg,#1e3a5f,#2d5080);color:#fff;border-radius:14px 14px 0 0;">
+                <h6 class="modal-title fw-semibold"><i class="bi bi-person-plus me-2"></i>Nuevo Usuario</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('crear_usuario') }}">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre completo</label>
+                        <input type="text" name="nombre" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de usuario</label>
+                        <input type="text" name="username" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" name="password" class="form-control" required minlength="6">
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Rol</label>
+                        <select name="rol" class="form-select">
+                            <option value="usuario">Usuario</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear usuario</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal cambiar contraseña -->
+<div class="modal fade" id="modalPassword" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:380px;">
+        <div class="modal-content" style="border:none;border-radius:14px;">
+            <div class="modal-header" style="background:linear-gradient(135deg,#1e3a5f,#2d5080);color:#fff;border-radius:14px 14px 0 0;">
+                <h6 class="modal-title fw-semibold"><i class="bi bi-key me-2"></i>Cambiar contraseña</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="formPassword" action="">
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">Usuario: <strong id="passwordUserNombre"></strong></p>
+                    <label class="form-label">Nueva contraseña</label>
+                    <input type="password" name="password" class="form-control" required minlength="6">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('modalPassword').addEventListener('show.bs.modal', function(e) {
+    const btn = e.relatedTarget;
+    document.getElementById('passwordUserNombre').textContent = btn.dataset.userNombre;
+    document.getElementById('formPassword').action = `/usuarios/${btn.dataset.userId}/cambiar_password`;
+});
+</script>
+{% endblock %}

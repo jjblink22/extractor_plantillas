@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+  <!-- Paso 1: Subir PDF -->
+  <div id="upload-section">
+    <input type="file" id="pdfFile" accept=".pdf">
+  </div>
+
+  <!-- Paso 2: Navegación y Vista Previa -->
+  <div id="review-section" class="d-none">
+    <div class="d-flex justify-content-between mb-3">
+      <button id="btnPrev" class="btn btn-secondary">Anterior</button>
+      <span id="page-info">Página 1 de 10</span>
+      <button id="btnNext" class="btn btn-secondary">Siguiente</button>
+    </div>
+    
+    <!-- Datos del Comprobante -->
+    <div id="comprobante-data"></div>
+    
+    <!-- Botón de Envío -->
+    <button id="btnEnviar" class="btn btn-primary mt-3">Enviar Comprobante</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let pdfInfo = { totalPages: 0, currentPage: 1 };
+
+  // Subir PDF y extraer número de páginas
+  document.getElementById('pdfFile').addEventListener('change', async (e) => {
+    const formData = new FormData();
+    formData.append('file', e.target.files[0]);
+    formData.append('tipo_comprobante', 'iva');  // O islr
+
+    const res = await fetch('/procesar_pagina?pagina=1', {
+      method: 'POST',
+      body: formData
+    });
+    
+    pdfInfo = {
+      totalPages: res.headers.get('X-Total-Pages'),
+      currentPage: 1
+    };
+    
+    mostrarComprobante(await res.json());
+    document.getElementById('review-section').classList.remove('d-none');
+  });
+
+  // Navegación
+  document.getElementById('btnNext').addEventListener('click', () => {
+    if (pdfInfo.currentPage < pdfInfo.totalPages) {
+      cargarPagina(pdfInfo.currentPage + 1);
+    }
+  });
+
+  async function cargarPagina(pagina) {
+    const res = await fetch(`/procesar_pagina?pagina=${pagina}`, {
+      method: 'POST',
+      body: new FormData()  // Reusar archivo subido
+    });
+    pdfInfo.currentPage = pagina;
+    mostrarComprobante(await res.json());
+  }
+
+  // Mostrar datos del comprobante
+  function mostrarComprobante(data) {
+    document.getElementById('comprobante-data').innerHTML = `
+      <div class="card">
+        <div class="card-body">
+          <h5>${data.sujeto_retenido}</h5>
+          <p>RIF: ${data.rif_sujeto}</p>
+          <p>Monto: ${data.monto_total_retenido || data.iva_retenido}</p>
+        </div>
+      </div>
+    `;
+    document.getElementById('page-info').textContent = 
+      `Página ${pdfInfo.currentPage} de ${pdfInfo.totalPages}`;
+  }
+
+  // Enviar comprobante individual
+  document.getElementById('btnEnviar').addEventListener('click', async () => {
+    await fetch('/enviar_individual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        comprobante: obtenerDatosActuales() // Datos del comprobante visible
+      })
+    });
+    showToast('¡Comprobante enviado correctamente!', 'success');
+  });
+</script>
+{% endblock %}

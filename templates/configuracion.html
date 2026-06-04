@@ -1,156 +1,401 @@
 {% extends "base.html" %}
 {% block title %} — Configuración{% endblock %}
+
+{% block styles %}
+<style>
+    body, .tab-pane, .card, .card-body, .card-header,
+    .form-label, .form-text, .form-control, .form-select,
+    label, p, h1, h2, h3, h4, h5, h6, span, div {
+        color: inherit;
+    }
+
+    .tab-pane { color: #1a1a2e; }
+
+    .section-card { border-left: 4px solid #2e86de; }
+    .section-card-red { border-left: 4px solid #e74c3c; }
+    .section-card-green { border-left: 4px solid #27ae60; }
+
+    .form-label  { color: #3a4a5c !important; font-weight: 500; font-size: 0.85rem; }
+    .form-text   { color: #6c7a8a !important; font-size: 0.78rem; }
+    .card-header { color: #1a1a2e !important; background: #f4f7fb !important; font-weight: 600; }
+
+    .nav-pills .nav-link         { color: #3a4a5c !important; font-weight: 500; }
+    .nav-pills .nav-link.active  { background-color: #2e86de !important; color: #fff !important; }
+    .nav-pills .nav-link:hover:not(.active) { background: #eef2ff; color: #2e86de !important; }
+
+    .var-badge {
+        display: inline-block;
+        background: #eef2ff;
+        color: #3d5af1 !important;
+        border: 1px solid #c7d2fe;
+        border-radius: 5px;
+        font-size: 0.78rem;
+        font-family: 'Courier New', monospace;
+        padding: 2px 8px;
+        margin: 2px 3px 2px 0;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .var-badge:hover { background: #dde6ff; }
+
+    .preview-box {
+        background: #f8fafc;
+        border: 1px solid #dde3ea;
+        border-radius: 8px;
+        padding: 14px 16px;
+        color: #1a1a2e !important;
+    }
+    .preview-box .preview-asunto {
+        font-weight: 600;
+        color: #1a1a2e !important;
+        font-size: 0.88rem;
+        margin-bottom: 10px;
+    }
+    .preview-box .preview-cuerpo {
+        font-size: 0.82rem;
+        color: #3a4a5c !important;
+        white-space: pre-wrap;
+        line-height: 1.7;
+    }
+    .preview-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #8a99a8 !important;
+        margin-bottom: 8px;
+    }
+
+    .info-pass { font-size: 0.78rem; }
+    .info-pass.ok   { color: #27ae60 !important; }
+    .info-pass.warn { color: #e67e22 !important; }
+
+    textarea.form-control { font-family: 'Inter', sans-serif; line-height: 1.7; color: #1a1a2e !important; }
+    .form-control, .form-select { color: #1a1a2e !important; }
+    .form-control::placeholder { color: #aab5c0 !important; }
+</style>
+{% endblock %}
+
 {% block content %}
+
 <div class="d-flex align-items-center gap-3 mb-4">
     <div class="p-2 rounded-3" style="background:#eef2ff;">
         <i class="bi bi-gear-fill fs-4" style="color:#2e86de;"></i>
     </div>
     <div>
-        <h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Configuración</h2>
-        <p style="color:#5a6a7a;margin:0;font-size:0.85rem;">Cuenta de correo saliente para el envío de documentos</p>
+        <h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Configuración del Sistema</h2>
+        <p style="color:#5a6a7a;margin:0;font-size:0.85rem;">Cuenta de correo saliente y plantillas de mensajes</p>
     </div>
 </div>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show mb-4">
-            <i class="bi bi-{{ 'check-circle' if category=='success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show mb-4">
+            <i class="bi bi-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     {% endfor %}
 {% endwith %}
 
-<div class="row g-4">
-    <div class="col-lg-6">
-        <div class="card" style="border-left:4px solid #2e86de;">
-            <div class="card-header"><i class="bi bi-server me-2" style="color:#2e86de;"></i>Configuración SMTP</div>
-            <div class="card-body">
-                <form method="POST">
-                    <div class="row g-3 mb-3">
-                        <div class="col-sm-8">
-                            <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Servidor SMTP</label>
-                            <input type="text" class="form-control" name="smtp_server"
-                                   value="{{ cfg.smtp_server }}" placeholder="mail.empresa.com">
-                        </div>
-                        <div class="col-sm-4">
-                            <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Puerto</label>
-                            <input type="number" class="form-control" name="smtp_port"
-                                   value="{{ cfg.smtp_port }}">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Correo remitente</label>
-                        <input type="email" class="form-control" name="email_user"
-                               value="{{ cfg.email_user }}" placeholder="documentos@empresa.com">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Nombre visible del remitente</label>
-                        <input type="text" class="form-control" name="email_nombre"
-                               value="{{ cfg.email_nombre }}" placeholder="Empresa — Documentos">
-                        <div class="form-text">Los destinatarios ven este nombre en el campo "De:"</div>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Contraseña</label>
-                        <input type="password" class="form-control" name="email_pass"
-                               placeholder="Dejar vacío para no cambiar" autocomplete="new-password">
-                        <div class="form-text">
-                            {% if cfg.email_pass %}
-                                <span style="color:#27ae60;"><i class="bi bi-lock-fill me-1"></i>Contraseña configurada.</span>
-                            {% else %}
-                                <span style="color:#f39c12;"><i class="bi bi-exclamation-circle me-1"></i>Sin contraseña configurada.</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <input type="hidden" name="seccion" value="smtp">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-floppy me-1"></i>Guardar configuración
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
+<!-- Tabs -->
+<ul class="nav nav-pills mb-4 gap-2">
+    <li class="nav-item">
+        <a class="nav-link active" href="#tab-correo" data-bs-toggle="pill">
+            <i class="bi bi-envelope-at me-1"></i> Cuenta de Correo
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#tab-plantillas" data-bs-toggle="pill">
+            <i class="bi bi-file-text me-1"></i> Plantillas de Mensajes
+        </a>
+    </li>
+</ul>
 
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-send-check me-2" style="color:#2e86de;"></i>Probar conexión</div>
-            <div class="card-body">
-                <p style="color:#5a6a7a;font-size:0.875rem;">Envía un correo de prueba para verificar que la configuración es correcta.</p>
-                <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Correo de destino</label>
-                <div class="input-group mb-3">
-                    <input type="email" class="form-control" id="correoProeba" placeholder="tu@correo.com">
-                    <button class="btn btn-outline-primary" id="btnProbar" type="button">
-                        <i class="bi bi-send"></i> Enviar prueba
-                    </button>
+<div class="tab-content">
+
+    <!-- ===== TAB CORREO ===== -->
+    <div class="tab-pane fade show active" id="tab-correo">
+        <div class="row g-4">
+
+            <div class="col-lg-6">
+                <div class="card section-card">
+                    <div class="card-header">
+                        <i class="bi bi-server me-2" style="color:#2e86de;"></i> Configuración SMTP
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="seccion" value="correo">
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-sm-8">
+                                    <label class="form-label">Servidor SMTP</label>
+                                    <input type="text" class="form-control" name="smtp_server"
+                                           value="{{ cfg.get('smtp_server','mail.fmcenter.com.ve') }}"
+                                           placeholder="mail.fmcenter.com.ve">
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label">Puerto</label>
+                                    <input type="number" class="form-control" name="smtp_port"
+                                           value="{{ cfg.get('smtp_port','587') }}">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Correo remitente</label>
+                                <input type="email" class="form-control" name="email_user"
+                                       value="{{ cfg.get('email_user','impuestos@fmcenter.com.ve') }}"
+                                       placeholder="impuestos@fmcenter.com.ve">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Nombre visible del remitente</label>
+                                <input type="text" class="form-control" name="email_nombre"
+                                       value="{{ cfg.get('email_nombre','FM Center — Comprobantes') }}"
+                                       placeholder="FM Center — Comprobantes">
+                                <div class="form-text">Los destinatarios verán este nombre en el campo "De:"</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label">Contraseña</label>
+                                <input type="password" class="form-control" name="email_pass"
+                                       placeholder="Dejar vacío para no cambiar la contraseña actual"
+                                       autocomplete="new-password">
+                                <div class="form-text mt-1">
+                                    {% if cfg.get('email_pass') %}
+                                        <span class="info-pass ok"><i class="bi bi-lock-fill me-1"></i>Contraseña configurada.</span>
+                                    {% else %}
+                                        <span class="info-pass warn"><i class="bi bi-exclamation-circle me-1"></i>Sin contraseña configurada.</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-floppy me-1"></i> Guardar Configuración
+                            </button>
+                        </form>
+                    </div>
                 </div>
-                <div id="resultadoPrueba"></div>
-
-                <hr class="my-3">
-                <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#8a99a8;margin-bottom:8px;">Configuración activa</p>
-                <table class="table table-sm mb-0" style="font-size:0.82rem;">
-                    <tr><td style="color:#8a99a8;width:100px;">Servidor</td><td style="font-family:monospace;">{{ cfg.smtp_server or '—' }}</td></tr>
-                    <tr><td style="color:#8a99a8;">Puerto</td><td style="font-family:monospace;">{{ cfg.smtp_port or '—' }}</td></tr>
-                    <tr><td style="color:#8a99a8;">Usuario</td><td style="font-family:monospace;">{{ cfg.email_user or '—' }}</td></tr>
-                    <tr><td style="color:#8a99a8;">Remitente</td><td>{{ cfg.email_nombre or '—' }}</td></tr>
-                </table>
             </div>
+
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-send-check me-2" style="color:#2e86de;"></i> Probar Conexión
+                    </div>
+                    <div class="card-body">
+                        <p style="color:#5a6a7a;font-size:0.875rem;margin-bottom:1rem;">
+                            Envía un correo de prueba para verificar que la configuración SMTP funciona correctamente.
+                        </p>
+                        <label class="form-label">Correo de destino para la prueba</label>
+                        <div class="input-group mb-3">
+                            <input type="email" class="form-control" id="correoProeba"
+                                   placeholder="tu@correo.com">
+                            <button class="btn btn-outline-primary" id="btnEnviarPrueba" type="button">
+                                <i class="bi bi-send"></i> Enviar prueba
+                            </button>
+                        </div>
+                        <div id="resultadoPrueba"></div>
+
+                        <hr class="my-3">
+                        <p class="preview-label mb-2">Configuración activa</p>
+                        <table class="table table-sm mb-0" style="font-size:0.82rem;">
+                            <tr>
+                                <td style="color:#8a99a8;width:110px;">Servidor</td>
+                                <td style="color:#1a1a2e;font-family:monospace;">{{ cfg.get('smtp_server','-') }}</td>
+                            </tr>
+                            <tr>
+                                <td style="color:#8a99a8;">Puerto</td>
+                                <td style="color:#1a1a2e;font-family:monospace;">{{ cfg.get('smtp_port','-') }}</td>
+                            </tr>
+                            <tr>
+                                <td style="color:#8a99a8;">Usuario</td>
+                                <td style="color:#1a1a2e;font-family:monospace;">{{ cfg.get('email_user','-') }}</td>
+                            </tr>
+                            <tr>
+                                <td style="color:#8a99a8;">Remitente</td>
+                                <td style="color:#1a1a2e;">{{ cfg.get('email_nombre','-') }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-</div>
 
-<!-- Plantillas de correo -->
-<div class="row g-4 mt-1">
-    <div class="col-12">
-        <div class="card" style="border-left:4px solid #27ae60;">
-            <div class="card-header"><i class="bi bi-file-text me-2" style="color:#27ae60;"></i>Plantilla de correo</div>
-            <div class="card-body">
-                <form method="POST">
-                    <input type="hidden" name="seccion" value="plantillas">
-                    <div class="alert alert-info py-2 mb-3 small">
-                        <strong>Variables disponibles:</strong>
-                        <code class="ms-1">{archivo}</code> <code class="ms-1">{cliente}</code>
-                        y cualquier campo extraído de la plantilla (ej: <code>{numero_comprobante}</code>)
+    <!-- ===== TAB PLANTILLAS ===== -->
+    <div class="tab-pane fade" id="tab-plantillas">
+
+        <div class="card mb-4">
+            <div class="card-body py-3">
+                <p style="color:#3a4a5c;font-weight:600;font-size:0.85rem;margin-bottom:8px;">
+                    <i class="bi bi-info-circle me-1" style="color:#2e86de;"></i>
+                    Variables disponibles — haz clic para copiar al portapapeles:
+                </p>
+                {% set vars = [
+                    ('{nombre_cliente}',     'Nombre del sujeto retenido'),
+                    ('{agente}',             'Nombre del agente de retención'),
+                    ('{numero_comprobante}', 'N° de comprobante'),
+                    ('{periodo}',            'Período del comprobante'),
+                    ('{rif}',                'RIF del sujeto retenido'),
+                ] %}
+                {% for var, desc in vars %}
+                    <span class="var-badge" title="{{ desc }}" onclick="copiarVar('{{ var }}', this)">{{ var }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <form method="POST">
+            <input type="hidden" name="seccion" value="plantillas">
+            <div class="row g-4">
+
+                <!-- IVA -->
+                <div class="col-lg-6">
+                    <div class="card section-card-green">
+                        <div class="card-header">
+                            <i class="bi bi-receipt me-2" style="color:#27ae60;"></i> Plantilla — IVA
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Asunto del correo</label>
+                                <textarea class="form-control" name="plantilla_asunto_iva"
+                                          id="iva_asunto" rows="2"
+                                          style="resize:none;">{{ cfg.get('plantilla_asunto_iva','') }}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Cuerpo del mensaje</label>
+                                <textarea class="form-control" name="plantilla_cuerpo_iva"
+                                          id="iva_cuerpo" rows="7">{{ cfg.get('plantilla_cuerpo_iva','') }}</textarea>
+                            </div>
+                            <div class="preview-box">
+                                <div class="preview-label">Vista previa</div>
+                                <div class="preview-asunto" id="prev_iva_asunto"></div>
+                                <div class="preview-cuerpo" id="prev_iva_cuerpo"></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Asunto del correo</label>
-                        <input type="text" class="form-control" name="plantilla_asunto"
-                               value="{{ cfg.plantilla_asunto }}">
+                </div>
+
+                <!-- ISLR -->
+                <div class="col-lg-6">
+                    <div class="card section-card-red">
+                        <div class="card-header">
+                            <i class="bi bi-receipt me-2" style="color:#e74c3c;"></i> Plantilla — ISLR
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Asunto del correo</label>
+                                <textarea class="form-control" name="plantilla_asunto_islr"
+                                          id="islr_asunto" rows="2"
+                                          style="resize:none;">{{ cfg.get('plantilla_asunto_islr','') }}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Cuerpo del mensaje</label>
+                                <textarea class="form-control" name="plantilla_cuerpo_islr"
+                                          id="islr_cuerpo" rows="7">{{ cfg.get('plantilla_cuerpo_islr','') }}</textarea>
+                            </div>
+                            <div class="preview-box">
+                                <div class="preview-label">Vista previa</div>
+                                <div class="preview-asunto" id="prev_islr_asunto"></div>
+                                <div class="preview-cuerpo" id="prev_islr_cuerpo"></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Cuerpo del mensaje</label>
-                        <textarea class="form-control" name="plantilla_cuerpo" rows="5">{{ cfg.plantilla_cuerpo }}</textarea>
-                    </div>
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-floppy me-1"></i>Guardar plantilla
+                </div>
+
+            </div>
+            <div class="mt-4 d-flex gap-2 align-items-center">
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="bi bi-floppy me-1"></i> Guardar Plantillas
+                </button>
+                <form method="POST" action="{{ url_for('reset_plantillas') }}" class="d-inline"
+                      onsubmit="return confirm('¿Restaurar las plantillas a los valores por defecto? Se perderán los cambios actuales.')">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar por defecto
                     </button>
                 </form>
             </div>
-        </div>
+        </form>
     </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.getElementById('btnProbar').addEventListener('click', async function() {
+const previewVars = {
+    '{nombre_cliente}':     'Empresa Ejemplo C.A.',
+    '{agente}':             'FM Center Inversiones 9954 C.A.',
+    '{numero_comprobante}': '00001234',
+    '{periodo}':            'Enero 2025',
+    '{rif}':                'J123456789',
+};
+
+function renderizar(text) {
+    let out = text || '';
+    for (const [k, v] of Object.entries(previewVars)) out = out.replaceAll(k, v);
+    return out;
+}
+
+function actualizarPreviews() {
+    document.getElementById('prev_iva_asunto').textContent  = renderizar(document.getElementById('iva_asunto').value);
+    document.getElementById('prev_iva_cuerpo').textContent  = renderizar(document.getElementById('iva_cuerpo').value);
+    document.getElementById('prev_islr_asunto').textContent = renderizar(document.getElementById('islr_asunto').value);
+    document.getElementById('prev_islr_cuerpo').textContent = renderizar(document.getElementById('islr_cuerpo').value);
+}
+
+['iva_asunto','iva_cuerpo','islr_asunto','islr_cuerpo'].forEach(id => {
+    document.getElementById(id).addEventListener('input', actualizarPreviews);
+});
+actualizarPreviews();
+
+function copiarVar(v, el) {
+    navigator.clipboard.writeText(v).then(() => {
+        const orig = el.textContent;
+        el.textContent = '✓ Copiado';
+        el.style.background = '#d1fae5';
+        el.style.borderColor = '#6ee7b7';
+        setTimeout(() => {
+            el.textContent = orig;
+            el.style.background = '';
+            el.style.borderColor = '';
+        }, 1200);
+    });
+}
+
+document.getElementById('btnEnviarPrueba').addEventListener('click', async function() {
     const correo = document.getElementById('correoProeba').value.trim();
     const result = document.getElementById('resultadoPrueba');
-    if (!correo) { result.innerHTML = '<div class="alert alert-warning py-2 small">Ingresa un correo.</div>'; return; }
+    if (!correo) {
+        result.innerHTML = '<div class="alert alert-warning py-2 small mb-0">Ingresa un correo de destino.</div>';
+        return;
+    }
     this.disabled = true;
     this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
+    result.innerHTML = '';
     try {
-        const r = await fetch('/configuracion/probar', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({correo})
+        const resp = await fetch("{{ url_for('probar_correo') }}", {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ correo_destino: correo })
         });
-        const d = await r.json();
-        result.innerHTML = `<div class="alert alert-${d.success?'success':'danger'} py-2 small">
-            <i class="bi bi-${d.success?'check-circle':'x-circle'} me-1"></i>${d.message}</div>`;
+        const data = await resp.json();
+        result.innerHTML = `<div class="alert alert-${data.success ? 'success' : 'danger'} py-2 small mb-0">
+            <i class="bi bi-${data.success ? 'check-circle' : 'x-circle'} me-1"></i>${data.message}
+        </div>`;
     } catch(e) {
-        result.innerHTML = '<div class="alert alert-danger py-2 small">Error de conexión.</div>';
+        result.innerHTML = '<div class="alert alert-danger py-2 small mb-0">Error de conexión.</div>';
     } finally {
         this.disabled = false;
         this.innerHTML = '<i class="bi bi-send"></i> Enviar prueba';
     }
 });
+    document.getElementById('btnRestaurar').addEventListener('click', function() {
+        showConfirm(
+            '¿Restaurar todas las plantillas a los valores por defecto?<br><small class="text-muted">Se perderán los cambios personalizados.</small>',
+            () => document.getElementById('formRestaurar').submit(),
+            'Restaurar plantillas'
+        );
+    });
 </script>
 {% endblock %}

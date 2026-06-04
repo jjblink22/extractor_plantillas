@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<style>
+    .comprobante-card {
+        margin-bottom: 1.5rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,.05);
+    }
+    .comprobante-header {
+        background-color: #f8f9fa;
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 0.5rem 0.5rem 0 0 !important;
+    }
+    .comprobante-body {
+        padding: 1rem;
+    }
+    .previsualizacion-pdf {
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        height: 500px;
+        width: 100%;
+    }
+    .badge-comprobante {
+        background-color: #6c757d;
+        color: white;
+        padding: 0.4em 0.6em;
+        font-size: 0.75em;
+        border-radius: 0.25rem;
+    }
+    .correo-missing {
+        color: #dc3545;
+        font-style: italic;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Revisión Individual de Comprobante</h2>
+        <span class="badge bg-primary fs-6">{{ indice_actual + 1 }} / {{ total }}</span>
+    </div>
+
+    {% if comprobante.agente_retencion %}
+    <div class="card mb-3 border-0" style="background:#f0f4f8;">
+        <div class="card-body py-2 px-3 d-flex align-items-center gap-4 flex-wrap">
+            <div style="font-size:0.78rem;color:#8a99a8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">
+                <i class="bi bi-building me-1"></i>Agente de Retención
+            </div>
+            <div style="font-size:0.875rem;color:#1a1a2e;font-weight:600;">
+                {{ comprobante.agente_retencion }}
+            </div>
+            {% if comprobante.rif_agente %}
+            <div style="font-size:0.82rem;color:#5a6a7a;">
+                RIF: {{ comprobante.rif_agente }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="comprobante-card">
+        <div class="comprobante-header">
+            <h5 class="mb-0">
+                {% if comprobante.tipo_documento == 'ISLR' %}
+                    Comprobante ISLR - Página {{ comprobante.pagina }}
+                {% else %}
+                    Comprobante Página {{ comprobante.pagina }} - N° {{ comprobante.numero_comprobante if comprobante.numero_comprobante else 'N/D' }}
+                {% endif %}
+            </h5>
+            <span class="badge-comprobante">
+                {% if comprobante.tipo_documento == 'ISLR' %}
+                    {{ comprobante.facturas|length if comprobante.facturas else 0 }} factura(s)
+                {% else %}
+                    Factura: {{ comprobante.numero_factura if comprobante.numero_factura else 'N/D' }}
+                {% endif %}
+            </span>
+        </div>
+        <div class="comprobante-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <p class="mb-2"><strong><i class="bi bi-person"></i> Sujeto Retenido:</strong> {{ comprobante.sujeto_retenido if comprobante.sujeto_retenido else 'No extraído' }}</p>
+                    <p class="mb-2"><strong><i class="bi bi-card-text"></i> RIF:</strong> {{ comprobante.rif_sujeto if comprobante.rif_sujeto else 'No extraído' }}</p>
+                    <p class="mb-2">
+                        <strong><i class="bi bi-envelope"></i> Correo Registrado:</strong>
+                        {% if comprobante.correo %}
+                            <a href="mailto:{{ comprobante.correo }}">{{ comprobante.correo }}</a>
+                        {% else %}
+                            <span class="correo-missing">No especificado en BD</span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-2"><strong><i class="bi bi-calendar"></i> Fecha:</strong> 
+                        {% if comprobante.tipo_documento == 'ISLR' and comprobante.facturas and comprobante.facturas|length > 0 %}
+                            {{ comprobante.facturas[0].fecha if comprobante.facturas[0].fecha else (comprobante.fecha_comprobante if comprobante.fecha_comprobante else "No especificada") }}
+                        {% else %}
+                            {{ comprobante.fecha_comprobante if comprobante.fecha_comprobante else "No especificada" }}
+                        {% endif %}
+                    </p>
+                    {% if comprobante.tipo_documento == 'ISLR' %}
+                        <p class="mb-2"><strong><i class="bi bi-file-earmark-text"></i> Código Retención:</strong> 
+                            {% if comprobante.facturas and comprobante.facturas|length > 0 %}
+                                {{ comprobante.facturas[0].codigo_retencion if comprobante.facturas[0].codigo_retencion else (comprobante.codigo_retencion if comprobante.codigo_retencion else 'N/D') }}
+                            {% else %}
+                                {{ comprobante.codigo_retencion if comprobante.codigo_retencion else 'N/D' }}
+                            {% endif %}
+                        </p>
+                    {% endif %}
+                    <p class="mb-2"><strong><i class="bi bi-file-earmark-text"></i> Tipo:</strong>
+                        {% if comprobante.tipo_documento == 'ISLR' %}
+                            ISLR (Impuesto Sobre la Renta)
+                        {% else %}
+                            IVA (Impuesto al Valor Agregado)
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-8">
+                    {% if comprobante.tipo_documento == 'ISLR' %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>N° Factura</th>
+                                        <th>N° Control</th>
+                                        <th>Código</th>
+                                        <th>Fecha</th>
+                                        <th class="text-end">Bruto</th>
+                                        <th class="text-end">Gravable</th>
+                                        <th class="text-end">% Ret.</th>
+                                        <th class="text-end">Retenido</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for factura in comprobante.facturas %}
+                                        <tr>
+                                            <td>{{ factura.numero }}</td>
+                                            <td>{{ factura.numero_control if factura.numero_control else 'N/D' }}</td>
+                                            <td>{{ factura.codigo_retencion }}</td>
+                                            <td>{{ factura.fecha }}</td>
+                                            <td class="text-end">{{ factura.monto_bruto|monto }}</td>
+                                            <td class="text-end">{{ factura.monto_gravable|monto }}</td>
+                                            <td class="text-end">{{ factura.porcentaje_retencion|monto }}%</td>
+                                            <td class="text-end">{{ factura.monto_retenido|monto }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-secondary">
+                                    <tr>
+                                        <th colspan="4">TOTALES</th>
+                                        <th class="text-end">{{ comprobante.monto_total_bruto|monto }}</th>
+                                        <th class="text-end">{{ comprobante.monto_total_gravable|monto }}</th>
+                                        <th class="text-end">{{ comprobante.porcentaje_retencion|monto }}%</th>
+                                        <th class="text-end">{{ comprobante.monto_total_retenido|monto }}</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>N° Factura</th>
+                                        <th>Base Imponible</th>
+                                        <th>IVA</th>
+                                        <th>IVA Retenido</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>{{ comprobante.numero_factura if comprobante.numero_factura else 'N/D' }}</td>
+                                        <td class="text-end">{{ comprobante.base_imponible|monto }}</td>
+                                        <td class="text-end">{{ comprobante.iva|monto }}</td>
+                                        <td class="text-end">{{ comprobante.iva_retenido|monto }}</td>
+                                        <td class="text-end">{{ comprobante.total|monto }}</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot class="table-secondary">
+                                    <tr>
+                                        <th>TOTALES</th>
+                                        <th class="text-end">{{ comprobante.base_imponible|monto }}</th>
+                                        <th class="text-end">{{ comprobante.iva|monto }}</th>
+                                        <th class="text-end">{{ comprobante.iva_retenido|monto }}</th>
+                                        <th class="text-end">{{ comprobante.total|monto }}</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4 shadow">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Vista Previa del Documento</h5>
+        </div>
+        <div class="card-body">
+            <div class="previsualizacion-pdf">
+                <iframe src="{{ url_for('ver_pdf', path=comprobante.pdf_path) }}#zoom=110&view=FitH" 
+                        style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">Acciones</h5>
+        </div>
+        <div class="card-body">
+            <form id="accion-form">
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label for="correo" class="form-label">Correo electrónico:</label>
+                        <input type="email" class="form-control" id="correo" 
+                               value="{{ comprobante.correo or '' }}" required>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end mb-3">
+                        <button type="button" class="btn btn-outline-secondary w-100"
+                                onclick="document.getElementById('correo').value = ''">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="button" class="btn btn-secondary" id="btn-omitir">
+                        <i class="bi bi-skip-forward"></i> Omitir
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="btn-enviar">
+                        <i class="bi bi-send"></i> Enviar Comprobante
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Variables pasadas desde el backend
+    window.comprobanteData = {{ comprobante|tojson|safe }};
+    window.enviarIndividualUrl = "{{ url_for('enviar_individual_handler') }}";
+    window.siguienteComprobanteUrl = "{{ url_for('siguiente_comprobante_handler') }}";
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('accion-form');
+    const btnEnviar = document.getElementById('btn-enviar');
+    const btnOmitir = document.getElementById('btn-omitir');
+    
+    if (!form || !btnEnviar || !btnOmitir) {
+        console.error('No se encontraron los elementos necesarios');
+        return;
+    }
+    
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Deshabilitar botones
+        btnEnviar.disabled = true;
+        btnOmitir.disabled = true;
+        btnEnviar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+        
+        const correoInput = document.getElementById('correo');
+        if (!correoInput) {
+            console.error('No se encontró el campo de correo');
+            return;
+        }
+        
+        const correo = correoInput.value;
+        
+        try {
+            const response = await fetch(window.enviarIndividualUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    comprobante: window.comprobanteData,
+                    correo: correo
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Avanzar al siguiente comprobante
+                window.location.href = window.siguienteComprobanteUrl;
+            } else {
+                showToast('Error: ' + (result.message || 'Error desconocido'), 'danger');
+                resetButtons();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Error de conexión: ' + error.message, 'danger');
+            resetButtons();
+        }
+    });
+    
+    btnOmitir.addEventListener('click', function() {
+        showConfirm('¿Deseas omitir este comprobante y pasar al siguiente?', () => {
+            window.location.href = window.siguienteComprobanteUrl;
+        }, 'Omitir comprobante');
+    });
+    
+    function resetButtons() {
+        btnEnviar.disabled = false;
+        btnOmitir.disabled = false;
+        btnEnviar.innerHTML = '<i class="bi bi-send"></i> Enviar Comprobante';
+    }
+});
+</script>
+{% endblock %}

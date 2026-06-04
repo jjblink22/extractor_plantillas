@@ -1,0 +1,619 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<style>
+    .upload-card {
+        max-width: 900px;
+        margin: 0 auto;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .upload-icon {
+        font-size: 2.5rem;
+        color: #0d6efd;
+        margin-bottom: 0.8rem;
+    }
+    
+    /* Estilos para las dos opciones lado a lado */
+    .upload-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+    
+    .upload-option {
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .upload-option:hover {
+        border-color: #0d6efd;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(13, 110, 253, 0.15);
+    }
+    
+    .option-header {
+        text-align: center;
+        margin-bottom: 1.2rem;
+    }
+    
+    .option-icon {
+        font-size: 2.2rem;
+        margin-bottom: 0.8rem;
+        display: block;
+    }
+    
+    .option-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.4rem;
+    }
+    
+    .option-description {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-bottom: 0;
+    }
+    
+    /* Área de drop para archivo individual */
+    .file-input-label {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 1.2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 120px;
+        margin-bottom: 1rem;
+    }
+    
+    .file-input-label:hover {
+        border-color: #0d6efd;
+        background-color: #f8f9fa;
+    }
+    
+    .file-input-label.dragover {
+        border-color: #0d6efd;
+        border-width: 3px;
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+    
+    .file-drop-text {
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 0.3rem;
+    }
+    
+    .file-drop-hint {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    
+    /* Botón de carpeta */
+    .folder-option {
+        text-align: center;
+    }
+    
+    .folder-btn {
+        width: 100%;
+        padding: 1rem;
+        font-size: 1rem;
+        font-weight: 500;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    .folder-btn i {
+        font-size: 2rem;
+    }
+    
+    /* Info de archivo */
+    .file-info {
+        margin-top: 0.8rem;
+        font-size: 0.85rem;
+    }
+    .file-name {
+        font-weight: 500;
+        color: #212529;
+    }
+    
+    /* Botones de tipo de comprobante */
+    .comprobante-type-btn {
+        border-radius: 20px;
+        padding: 0.4rem 1.2rem;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+    
+    /* Botones de acción */
+    .action-button {
+        width: 100%;
+        padding: 0.6rem;
+        font-weight: 500;
+        border-radius: 6px;
+    }
+    
+    #submitBtn:disabled {
+        opacity: 0.65;
+        background-color: #0d6efd;
+    }
+    
+    #uploadProgress {
+        height: 8px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .header-container {
+            flex-direction: column;
+            text-align: center;
+        }
+        .logo {
+            margin-right: 0;
+            margin-bottom: 15px;
+            max-height: 60px;
+        }
+        .header-text h1 {
+            font-size: 1.5rem;
+        }
+        .upload-options {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+        .comprobante-type-btn {
+            padding: 0.4rem 1rem;
+            font-size: 0.85rem;
+        }
+        .file-input-label {
+            min-height: 100px;
+            padding: 1rem;
+        }
+        .folder-btn {
+            min-height: 100px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+    <div class="card upload-card">
+        <div class="card-body p-3 p-md-4">
+            <div class="text-center mb-3">
+                <i class="bi bi-cloud-arrow-up upload-icon"></i>
+                <h3 class="mb-2">Cargar Comprobantes</h3>
+                <p class="text-muted mb-3">Seleccione el tipo de comprobante y elija un método de carga.</p>
+                
+                <!-- Tipo de comprobante -->
+                <div class="d-flex justify-content-center mb-0">
+                    <div class="btn-group" role="group" aria-label="Tipo de comprobante">
+                        <input type="radio" class="btn-check" name="tipo_comprobante" id="tipo_iva" value="iva" autocomplete="off" checked>
+                        <label class="btn btn-outline-primary comprobante-type-btn" for="tipo_iva">
+                            <i class="bi bi-receipt"></i> Retención IVA
+                        </label>
+
+                        <input type="radio" class="btn-check" name="tipo_comprobante" id="tipo_islr" value="islr" autocomplete="off">
+                        <label class="btn btn-outline-primary comprobante-type-btn" for="tipo_islr">
+                            <i class="bi bi-file-earmark-text"></i> Retención ISLR
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Opciones de carga lado a lado -->
+            <div class="upload-options">
+                <!-- Opción 1: Múltiples archivos PDF -->
+                <div class="upload-option">
+                    <div class="option-header">
+                        <i class="bi bi-send-check option-icon text-primary"></i>
+                        <div class="option-title">Envío Masivo</div>
+                        <div class="option-description">Carga varios PDF, revisa todos juntos y envía en bloque</div>
+                    </div>
+                    
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <input type="hidden" name="tipo_comprobante" id="tipoComprobanteHidden" value="iva">
+                        <input type="hidden" name="modo_procesamiento" value="individual">
+                        
+                        <div class="mb-3">
+                            <label for="pdfFile" class="file-input-label" id="fileDropArea">
+                                <div class="text-center">
+                                    <i class="bi bi-cloud-upload" style="font-size: 1.8rem; color: #0d6efd;"></i>
+                                    <div class="file-drop-text">Arrastrar archivos o hacer clic</div>
+                                    <div class="file-drop-hint">PDF • Selección múltiple permitida</div>
+                                    <div id="fileInfo" class="file-info mt-2">
+                                        <div id="filePreview" class="d-none">
+                                            <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>
+                                            <span class="file-name fw-semibold"></span>
+                                            <span class="file-size text-muted small ms-1"></span>
+                                            <button type="button" class="btn-close btn-close-file ms-2" style="font-size:0.7rem;" aria-label="Remover"></button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <input type="file" class="form-control d-none" id="pdfFile" name="files" accept=".pdf" multiple required>
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary action-button" id="submitBtn" disabled>
+                            <i class="bi bi-upload"></i> Procesar Archivos
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Opción 2: Carpeta completa -->
+                <div class="upload-option">
+                    <div class="option-header">
+                        <i class="bi bi-card-checklist option-icon text-success"></i>
+                        <div class="option-title">Revisión Individual</div>
+                        <div class="option-description">Revisa y envía cada comprobante uno por uno con control total</div>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data" id="revisionForm">
+                        <input type="hidden" name="tipo_comprobante" id="tipoComprobanteRevision" value="iva">
+                        <input type="hidden" name="modo_procesamiento" value="carpeta">
+
+                        <div class="mb-3">
+                            <label for="revisionFiles" class="file-input-label" id="revisionDropArea">
+                                <div class="text-center">
+                                    <i class="bi bi-card-checklist" style="font-size:1.8rem;color:#27ae60;"></i>
+                                    <div class="file-drop-text">Arrastrar archivos o hacer clic</div>
+                                    <div class="file-drop-hint">PDF • Selección múltiple permitida</div>
+                                    <div id="revisionFileInfo" class="file-info mt-2">
+                                        <div id="revisionFilePreview" class="d-none">
+                                            <i class="bi bi-file-earmark-pdf-fill text-success me-1"></i>
+                                            <span class="file-name fw-semibold"></span>
+                                            <span class="file-size text-muted small ms-1"></span>
+                                            <button type="button" class="btn-close btn-close-revision ms-2" style="font-size:0.7rem;" aria-label="Remover"></button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <input type="file" class="form-control d-none" id="revisionFiles" name="files" accept=".pdf" multiple required>
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-success action-button" id="submitRevisionBtn" disabled>
+                            <i class="bi bi-card-checklist"></i> Iniciar Revisión
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="progress mt-3 d-none" id="uploadProgress">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="mt-3">
+                {% for category, message in messages %}
+                    {% if category == 'tipo_error' %}
+                        <div class="alert alert-dismissible fade show" style="background:#fff3cd;border-left:5px solid #f39c12;border-radius:10px;padding:16px 20px;">
+                            <div class="d-flex align-items-start gap-3">
+                                <i class="bi bi-exclamation-triangle-fill fs-3" style="color:#f39c12;flex-shrink:0;"></i>
+                                <div>
+                                    <div class="fw-bold mb-1" style="color:#7d5a0a;font-size:1rem;">Tipo de comprobante incorrecto</div>
+                                    <div style="color:#7d5a0a;">{{ message|safe }}</div>
+                                    <div class="mt-2 small" style="color:#9a7000;">Selecciona el tipo correcto en los botones de arriba antes de cargar los archivos.</div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'warning' }} alert-dismissible fade show">
+                            <i class="bi bi-{{ 'exclamation-triangle-fill' if category in ['error','warning'] else 'check-circle-fill' }} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Variables para carga de archivo único ---
+    const fileInput = document.getElementById('pdfFile');
+    const fileDropArea = document.getElementById('fileDropArea');
+    const filePreview = document.getElementById('filePreview');
+    const fileNameEl = filePreview.querySelector('.file-name');
+    const fileSizeEl = filePreview.querySelector('.file-size');
+    const submitBtn = document.getElementById('submitBtn');
+    const uploadForm = document.getElementById('uploadForm');
+
+    // --- Variables comunes ---
+    const tipoRadios    = document.querySelectorAll('input[type="radio"][name="tipo_comprobante"]');
+    const tipoHidden    = document.getElementById('tipoComprobanteHidden');
+    const uploadProgress= document.getElementById('uploadProgress');
+    const progressBar   = uploadProgress.querySelector('.progress-bar');
+
+    // Sincronizar tipo con AMBOS formularios al cambiar el radio
+    tipoRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            tipoHidden.value = this.value;
+            document.getElementById('tipoComprobanteRevision').value = this.value;
+            if (fileInput.files.length > 0) updateFileInfo();
+        });
+    });
+
+    // --- Revisión Individual (selección múltiple normal) ---
+    const revisionInput    = document.getElementById('revisionFiles');
+    const revisionDropArea = document.getElementById('revisionDropArea');
+    const revisionPreview  = document.getElementById('revisionFilePreview');
+    const revisionNameEl   = revisionPreview.querySelector('.file-name');
+    const revisionSizeEl   = revisionPreview.querySelector('.file-size');
+    const submitRevisionBtn= document.getElementById('submitRevisionBtn');
+
+    revisionDropArea.addEventListener('dragover', e => { e.preventDefault(); revisionDropArea.classList.add('dragover'); });
+    revisionDropArea.addEventListener('dragleave', () => revisionDropArea.classList.remove('dragover'));
+    revisionDropArea.addEventListener('drop', e => {
+        e.preventDefault();
+        revisionDropArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length) { revisionInput.files = e.dataTransfer.files; updateRevisionInfo(); }
+    });
+    revisionInput.addEventListener('change', updateRevisionInfo);
+
+    function updateRevisionInfo() {
+        if (revisionInput.files && revisionInput.files.length > 0) {
+            const files = Array.from(revisionInput.files);
+            const count = files.length;
+            revisionNameEl.textContent = count === 1 ? files[0].name : `${count} archivos seleccionados`;
+            revisionSizeEl.textContent = count === 1 ? formatFileSize(files[0].size) : `Total: ${formatFileSize(files.reduce((a,f) => a + f.size, 0))}`;
+            revisionPreview.classList.remove('d-none');
+            submitRevisionBtn.disabled = false;
+            submitRevisionBtn.innerHTML = `<i class="bi bi-card-checklist"></i> Iniciar Revisión (${count})`;
+            revisionPreview.querySelector('.btn-close-revision').onclick = e => {
+                e.stopPropagation();
+                revisionInput.value = '';
+                revisionPreview.classList.add('d-none');
+                submitRevisionBtn.disabled = true;
+                submitRevisionBtn.innerHTML = '<i class="bi bi-card-checklist"></i> Iniciar Revisión';
+            };
+        }
+    }
+
+    // --- Lógica para Carga de Archivos (Drag & Drop, múltiple) ---
+    fileDropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileDropArea.classList.add('dragover');
+        fileDropArea.querySelector('.file-drop-text').textContent = 'Suelte los archivos aquí';
+    });
+    
+    fileDropArea.addEventListener('dragleave', () => {
+        fileDropArea.classList.remove('dragover');
+        fileDropArea.querySelector('.file-drop-text').textContent = 'Arrastrar archivos o hacer clic';
+    });
+    
+    fileDropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileDropArea.classList.remove('dragover');
+        fileDropArea.querySelector('.file-drop-text').textContent = 'Arrastrar archivos o hacer clic';
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            updateFileInfo();
+        }
+    });
+    
+    fileInput.addEventListener('change', updateFileInfo);
+    
+    function updateFileInfo() {
+        if (fileInput.files && fileInput.files.length > 0) {
+            const files = Array.from(fileInput.files);
+            const totalSize = files.reduce((acc, f) => acc + f.size, 0);
+            const count = files.length;
+
+            if (count === 1) {
+                fileNameEl.textContent = files[0].name;
+                fileSizeEl.textContent = formatFileSize(files[0].size);
+            } else {
+                fileNameEl.textContent = `${count} archivos seleccionados`;
+                fileSizeEl.textContent = `Total: ${formatFileSize(totalSize)}`;
+            }
+
+            filePreview.classList.remove('d-none');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="bi bi-upload"></i> Procesar ${count > 1 ? count + ' Archivos' : 'Archivo'}`;
+
+            const closeBtn = filePreview.querySelector('.btn-close-file');
+            closeBtn.onclick = function(e) {
+                e.stopPropagation();
+                fileInput.value = '';
+                filePreview.classList.add('d-none');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<i class="bi bi-upload"></i> Procesar Archivos`;
+            };
+        } else {
+            filePreview.classList.add('d-none');
+            submitBtn.disabled = true;
+        }
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    function showAlert(message, type) {
+        const existingAlert = document.querySelector('.alert-dismissible');
+        if(existingAlert) {
+            const bsAlert = new bootstrap.Alert(existingAlert);
+            bsAlert.close();
+        }
+        
+        const alertContainer = document.querySelector('.card.upload-card').parentNode;
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show mt-3`;
+        alertDiv.innerHTML = `
+            <i class="bi bi-${type === 'danger' ? 'exclamation-triangle-fill' : type === 'warning' ? 'exclamation-triangle-fill' : 'info-circle-fill'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        alertContainer.insertBefore(alertDiv, document.querySelector('.card.upload-card').nextSibling);
+        
+        setTimeout(() => {
+            if (alertDiv.isConnected) {
+                const bsAlert = new bootstrap.Alert(alertDiv);
+                if(bsAlert) bsAlert.close();
+            }
+        }, type === 'warning' ? 8000 : 5000);
+    }
+    
+    // Limpiar estado al regresar con botón atrás (bfcache)
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) {
+            // Ocultar overlay
+            procOverlay.style.display = 'none';
+            // Restaurar botón Envío Masivo
+            const sb = document.getElementById('submitBtn');
+            if (sb) {
+                sb.disabled = true;
+                sb.innerHTML = '<i class="bi bi-upload"></i> Procesar Archivos';
+            }
+            // Restaurar botón Revisión Individual
+            const srb = document.getElementById('submitRevisionBtn');
+            if (srb) {
+                srb.disabled = true;
+                srb.innerHTML = '<i class="bi bi-card-checklist"></i> Iniciar Revisión';
+            }
+            // Limpiar selección de archivos (los inputs quedan vacíos al volver)
+            const pdfFile = document.getElementById('pdfFile');
+            const revFile = document.getElementById('revisionFiles');
+            const prev1   = document.getElementById('filePreview');
+            const prev2   = document.getElementById('revisionFilePreview');
+            if (pdfFile)  pdfFile.value  = '';
+            if (revFile)  revFile.value  = '';
+            if (prev1)    prev1.classList.add('d-none');
+            if (prev2)    prev2.classList.add('d-none');
+        }
+    });
+
+    // --- Overlay de procesamiento ---
+    const procOverlay      = document.getElementById('processingOverlay');
+    const procOverlayTitle = document.getElementById('procOverlayTitle');
+    const procOverlayMsg   = document.getElementById('procOverlayMsg');
+
+    function mostrarOverlay(titulo, mensaje) {
+        procOverlayTitle.textContent = titulo;
+        procOverlayMsg.textContent   = mensaje;
+        procOverlay.style.display    = 'flex';
+    }
+    function ocultarOverlay() {
+        procOverlay.style.display = 'none';
+    }
+
+    async function enviarFormularioAJAX(form, titulo, mensaje) {
+        mostrarOverlay(titulo, mensaje);
+        try {
+            const formData = new FormData(form);
+            const resp = await fetch('/', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData
+            });
+            const data = await resp.json();
+            if (data.success) {
+                // Reemplazar historial para que "atrás" desde la siguiente página vuelva aquí limpio
+                history.replaceState(null, '', '/');
+                window.location.href = data.redirect;
+            } else {
+                ocultarOverlay();
+                // Mostrar error en la página
+                const alertDiv = document.createElement('div');
+                alertDiv.className = data.tipo_error
+                    ? 'alert alert-dismissible fade show mt-3'
+                    : 'alert alert-warning alert-dismissible fade show mt-3';
+                if (data.tipo_error) {
+                    alertDiv.style.cssText = 'background:#fff3cd;border-left:5px solid #f39c12;border-radius:10px;padding:16px 20px;';
+                    alertDiv.innerHTML = `
+                        <div class="d-flex align-items-start gap-3">
+                            <i class="bi bi-exclamation-triangle-fill fs-3" style="color:#f39c12;flex-shrink:0;"></i>
+                            <div>
+                                <div class="fw-bold mb-1" style="color:#7d5a0a;">Tipo de comprobante incorrecto</div>
+                                <div style="color:#7d5a0a;">${data.message}</div>
+                                <div class="mt-2 small" style="color:#9a7000;">Selecciona el tipo correcto antes de cargar.</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+                } else {
+                    alertDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+                }
+                form.parentElement.insertBefore(alertDiv, form);
+                // Limpiar selección
+                form.reset();
+                const submitEl = form.querySelector('[type=submit]');
+                if (submitEl) { submitEl.disabled = true; }
+                const preview = form.querySelector('.d-none, [id$="Preview"]');
+            }
+        } catch(e) {
+            ocultarOverlay();
+            showToast('Error de conexión al procesar. Intenta de nuevo.', 'danger');
+        }
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const count = document.getElementById('pdfFile').files.length;
+        enviarFormularioAJAX(this,
+            count > 1 ? `Procesando ${count} archivos...` : 'Procesando archivo...',
+            'Extrayendo comprobantes del PDF, por favor espera'
+        );
+    });
+
+    document.getElementById('revisionForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const count = document.getElementById('revisionFiles').files.length;
+        enviarFormularioAJAX(this,
+            count > 1 ? `Preparando ${count} archivos...` : 'Preparando archivo...',
+            'Analizando comprobantes para revisión individual'
+        );
+    });
+
+});
+</script>
+
+<div id="processingOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,25,50,0.78);backdrop-filter:blur(4px);z-index:9999;flex-direction:column;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:40px 48px;text-align:center;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.35);">
+        <div style="margin-bottom:16px;">
+            <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                <circle cx="28" cy="28" r="24" stroke="#e8edf2" stroke-width="5"/>
+                <path d="M28 4 a24 24 0 0 1 24 24" stroke="#2e86de" stroke-width="5" stroke-linecap="round">
+                    <animateTransform attributeName="transform" type="rotate" from="0 28 28" to="360 28 28" dur="0.9s" repeatCount="indefinite"/>
+                </path>
+            </svg>
+        </div>
+        <div id="procOverlayTitle" style="font-size:1.1rem;font-weight:700;color:#1e3a5f;margin-bottom:8px;">Procesando...</div>
+        <div id="procOverlayMsg" style="font-size:0.85rem;color:#5a6a7a;margin-bottom:20px;">Extrayendo datos de los comprobantes</div>
+        <div style="height:6px;background:#e8edf2;border-radius:99px;overflow:hidden;">
+            <div style="height:100%;background:linear-gradient(90deg,#2e86de,#27ae60);border-radius:99px;animation:proc-slide 1.4s ease infinite;width:40%;"></div>
+        </div>
+        <div style="font-size:0.75rem;color:#aab5c0;margin-top:12px;">Por favor espera, no cierres esta ventana</div>
+    </div>
+</div>
+<style>
+@keyframes proc-slide { 0% { transform:translateX(-150%); } 100% { transform:translateX(450%); } }
+</style>
+{% endblock %}

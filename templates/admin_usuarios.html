@@ -1,77 +1,111 @@
 {% extends "base.html" %}
-{% block title %} — Usuarios{% endblock %}
+
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
-    <div class="d-flex align-items-center gap-3">
-        <div class="p-2 rounded-3" style="background:#eef2ff;"><i class="bi bi-people-fill fs-4" style="color:#2e86de;"></i></div>
-        <div><h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Usuarios</h2>
-        <p class="text-muted mb-0 small">Gestión de acceso al sistema</p></div>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-people me-2"></i>Administración de Usuarios</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#crearUsuarioModal">
+            <i class="bi bi-plus-circle me-2"></i>Nuevo Usuario
+        </button>
     </div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
-        <i class="bi bi-person-plus me-1"></i>Nuevo usuario
-    </button>
-</div>
-
-<div class="card">
-    <div class="table-responsive">
-        <table class="table mb-0">
-            <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
-            <tbody>
-            {% for u in usuarios %}
-            <tr>
-                <td class="fw-semibold">{{ u.nombre }}</td>
-                <td class="text-muted small font-monospace">{{ u.username }}</td>
-                <td>
-                    <span class="badge" style="background:{% if u.rol=='admin' %}#1e3a5f{% else %}#6c757d{% endif %};">
-                        {{ u.rol }}
-                    </span>
-                </td>
-                <td class="text-muted small">{{ u.creado.strftime('%d/%m/%Y') if u.creado else '—' }}</td>
-                <td>
-                    <button class="btn btn-outline-secondary btn-sm me-1"
-                            data-bs-toggle="modal" data-bs-target="#modalPassword"
-                            data-user-id="{{ u.id }}" data-user-nombre="{{ u.nombre }}">
-                        <i class="bi bi-key"></i>
-                    </button>
-                    {% if u.id != session.get('user_id') %}
-                    <form method="POST" action="{{ url_for('eliminar_usuario', user_id=u.id) }}" class="d-inline"
-                          onsubmit="return confirm('¿Eliminar usuario {{ u.nombre }}?')">
-                        <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
-                    </form>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Modal nuevo usuario -->
-<div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
-        <div class="modal-content" style="border:none;border-radius:14px;">
-            <div class="modal-header" style="background:linear-gradient(135deg,#1e3a5f,#2d5080);color:#fff;border-radius:14px 14px 0 0;">
-                <h6 class="modal-title fw-semibold"><i class="bi bi-person-plus me-2"></i>Nuevo Usuario</h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="mt-4">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                        <i class="bi bi-{{ 'exclamation-triangle-fill' if category == 'error' else 'check-circle-fill' }} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
             </div>
-            <form method="POST" action="{{ url_for('crear_usuario') }}">
-                <div class="modal-body p-4">
+        {% endif %}
+    {% endwith %}
+    
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Fecha Creación</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usuario in usuarios %}
+                        <tr>
+                            <td>{{ usuario['username'] }}</td>
+                            <td>{{ usuario['nombre_completo'] }}</td>
+                            <td>{{ usuario['email'] }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'primary' if usuario['rol'] == 'admin' else 'success' }}">
+                                    {{ usuario['rol']|capitalize }}
+                                </span>
+                            </td>
+                            <td>{{ usuario['creado'] }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-warning me-2" data-bs-toggle="modal" 
+                                        data-bs-target="#editarUsuarioModal" 
+                                        data-id="{{ usuario['id'] }}"
+                                        data-username="{{ usuario['username'] }}"
+                                        data-nombre_completo="{{ usuario['nombre_completo'] }}"
+                                        data-email="{{ usuario['email'] }}"
+                                        data-rol="{{ usuario['rol'] }}">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </button>
+                                
+                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" 
+                                        data-bs-target="#eliminarUsuarioModal"
+                                        data-id="{{ usuario['id'] }}"
+                                        data-username="{{ usuario['username'] }}">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para crear nuevo usuario -->
+<div class="modal fade" id="crearUsuarioModal" tabindex="-1" aria-labelledby="crearUsuarioModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="crearUsuarioModalLabel">Crear Nuevo Usuario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_usuarios') }}">
+                <input type="hidden" name="action" value="create">
+                <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Nombre completo</label>
-                        <input type="text" name="nombre" class="form-control" required>
+                        <label for="username" class="form-label">Usuario</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Nombre de usuario</label>
-                        <input type="text" name="username" class="form-control" required>
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Contraseña</label>
-                        <input type="password" name="password" class="form-control" required minlength="6">
+                        <label for="nombre_completo" class="form-label">Nombre Completo</label>
+                        <input type="text" class="form-control" id="nombre_completo" name="nombre_completo" required>
                     </div>
-                    <div class="mb-0">
-                        <label class="form-label">Rol</label>
-                        <select name="rol" class="form-select">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Corporativo</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="rol" class="form-label">Rol</label>
+                        <select class="form-select" id="rol" name="rol" required>
                             <option value="usuario">Usuario</option>
                             <option value="admin">Administrador</option>
                         </select>
@@ -79,30 +113,77 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Crear usuario</button>
+                    <button type="submit" class="btn btn-primary">Crear Usuario</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Modal cambiar contraseña -->
-<div class="modal fade" id="modalPassword" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width:380px;">
-        <div class="modal-content" style="border:none;border-radius:14px;">
-            <div class="modal-header" style="background:linear-gradient(135deg,#1e3a5f,#2d5080);color:#fff;border-radius:14px 14px 0 0;">
-                <h6 class="modal-title fw-semibold"><i class="bi bi-key me-2"></i>Cambiar contraseña</h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+<!-- Modal para editar usuario -->
+<div class="modal fade" id="editarUsuarioModal" tabindex="-1" aria-labelledby="editarUsuarioModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editarUsuarioModalLabel">Editar Usuario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" id="formPassword" action="">
-                <div class="modal-body p-4">
-                    <p class="text-muted small mb-3">Usuario: <strong id="passwordUserNombre"></strong></p>
-                    <label class="form-label">Nueva contraseña</label>
-                    <input type="password" name="password" class="form-control" required minlength="6">
+            <form method="POST" action="{{ url_for('admin_usuarios') }}">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="user_id" id="edit_user_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_username" class="form-label">Usuario</label>
+                        <input type="text" class="form-control" id="edit_username" name="username" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_nombre_completo" class="form-label">Nombre Completo</label>
+                        <input type="text" class="form-control" id="edit_nombre_completo" name="nombre_completo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="edit_email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_rol" class="form-label">Rol</label>
+                        <select class="form-select" id="edit_rol" name="rol" required>
+                            <option value="usuario">Usuario</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_password" class="form-label">Nueva Contraseña (opcional)</label>
+                        <input type="password" class="form-control" id="edit_password" name="new_password" 
+                               placeholder="Dejar vacío para mantener la contraseña actual">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para eliminar usuario -->
+<div class="modal fade" id="eliminarUsuarioModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_usuarios') }}">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="user_id" id="delete_user_id">
+                <div class="modal-body">
+                    <p>¿Está seguro de que desea eliminar al usuario: <strong id="delete_username"></strong>?</p>
+                    <p class="text-danger">Esta acción no se puede deshacer.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
                 </div>
             </form>
         </div>
@@ -111,11 +192,66 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
-document.getElementById('modalPassword').addEventListener('show.bs.modal', function(e) {
-    const btn = e.relatedTarget;
-    document.getElementById('passwordUserNombre').textContent = btn.dataset.userNombre;
-    document.getElementById('formPassword').action = `/usuarios/${btn.dataset.userId}/cambiar_password`;
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cargar datos en modal de edición
+        const editModal = document.getElementById('editarUsuarioModal');
+        
+        editModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            
+            const userId = button.getAttribute('data-id');
+            const username = button.getAttribute('data-username');
+            const nombreCompleto = button.getAttribute('data-nombre_completo');
+            const email = button.getAttribute('data-email');
+            const rol = button.getAttribute('data-rol');
+            
+            document.getElementById('edit_user_id').value = userId;
+            document.getElementById('edit_username').value = username;
+            document.getElementById('edit_nombre_completo').value = nombreCompleto;
+            document.getElementById('edit_email').value = email;
+            document.getElementById('edit_rol').value = rol;
+            
+            // Confirmación al cambiar de admin a usuario
+            if (rol === 'admin') {
+                // Guardar el manejador de eventos para luego removerlo si es necesario
+                const rolSelect = document.getElementById('edit_rol');
+                const rolSelectRef = rolSelect;
+                const changeHandler = function() {
+                    if (this.value !== 'admin') {
+                        const prevVal = 'admin';
+                        showConfirm(
+                            '¿Está seguro de quitar los privilegios de administrador a este usuario?',
+                            () => {},
+                            'Cambiar rol'
+                        );
+                        document.getElementById('globalConfirmOk').onclick = () => {
+                            bootstrap.Modal.getInstance(document.getElementById('globalConfirmModal')).hide();
+                        };
+                        document.getElementById('globalConfirmCancel').onclick = () => {
+                            rolSelectRef.value = prevVal;
+                        };
+                        document.getElementById('globalConfirmModal').addEventListener('hidden.bs.modal', () => {}, { once: true });
+                    }
+                };
+                
+                // Remover cualquier manejador previo para evitar duplicados
+                rolSelect.removeEventListener('change', changeHandler);
+                rolSelect.addEventListener('change', changeHandler);
+            }
+        });
+        
+        // Cargar datos en modal de eliminación
+        const deleteModal = document.getElementById('eliminarUsuarioModal');
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const userId = button.getAttribute('data-id');
+            const username = button.getAttribute('data-username');
+            
+            document.getElementById('delete_user_id').value = userId;
+            document.getElementById('delete_username').textContent = username;
+        });
+    });
 </script>
 {% endblock %}

@@ -1,0 +1,1023 @@
+{% extends "base.html" %}
+
+{% block header %}
+    <div class="d-flex justify-content-between align-items-center">
+        <h2>Confirmar Envío de Comprobantes</h2>
+        <span class="text-muted">Usuario: {{ session['nombre'] }}</span>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <div class="modal fade" id="resumenModal" tabindex="-1" aria-labelledby="resumenModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="resumenModalLabel">Resumen del Envío de Comprobantes</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4" id="resumenModalBody">
+                    </div>
+                <div class="modal-footer">
+                    <a href="{{ url_for('upload') }}" class="btn btn-primary w-100">
+                        <i class="bi bi-house-door-fill"></i> Volver a Inicio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid py-3 px-4">
+        <div class="page-header-conf">
+            <img src="{{ url_for('static', filename='logofm.png') }}" alt="Logo FM Center" class="logo">
+            <div class="header-text">
+                <h2>Confirmación de Envío</h2>
+                <p>Revisa los datos antes de enviar. Puedes editar el correo de cada comprobante.</p>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Agente(s) de Retención</h5>
+            </div>
+            <div class="card-body">
+                {% set agentes_unicos = [] %}
+                {% for comp in comprobantes %}
+                    {% if comp.agente_retencion and comp.agente_retencion not in agentes_unicos %}
+                        {% set _ = agentes_unicos.append(comp.agente_retencion) %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if agentes_unicos|length == 1 %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Nombre/Razón Social:</strong>
+                                {{ agente_info.nombre if agente_info else comprobantes[0].agente_retencion }}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>RIF:</strong>
+                                {{ agente_info.rif if agente_info else (comprobantes[0].rif_agente or 'No disponible') }}
+                            </p>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info py-2 mb-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Este lote contiene comprobantes de <strong>{{ agentes_unicos|length }} agentes de retención distintos</strong>.
+                    </div>
+                    <div class="row g-2">
+                        {% for comp in comprobantes %}
+                            {% if comp.agente_retencion and comp.agente_retencion not in agentes_unicos[loop.index0:] %}
+                        {% endif %}
+                        {% endfor %}
+                        {% set vistos = [] %}
+                        {% for comp in comprobantes %}
+                            {% if comp.agente_retencion and comp.agente_retencion not in vistos %}
+                                {% set _ = vistos.append(comp.agente_retencion) %}
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2" style="font-size:0.875rem;">
+                                        <strong>{{ comp.agente_retencion }}</strong>
+                                        {% if comp.rif_agente %}<span class="text-muted ms-2">{{ comp.rif_agente }}</span>{% endif %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Resumen de Comprobantes</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0" id="tablaComprobantes">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Página</th>
+                                {% if comprobantes and comprobantes[0].tipo_documento == 'ISLR' %}
+                                    <th>N° Control</th>
+                                    <th>Cliente</th>
+                                    <th>RIF</th>
+                                    <th>Facturas</th>
+                                    <th class="text-end">Monto Bruto</th>
+                                    <th class="text-end">Monto Gravable</th>
+                                    <th class="text-end">% Retención</th>
+                                    <th class="text-end">Monto Retenido</th>
+                                {% else %}
+                                    <th>N° Comprobante</th>
+                                    <th>Cliente</th>
+                                    <th>RIF</th>
+                                    <th>N° Factura</th>
+                                    <th class="text-end">Base Imponible</th>
+                                    <th class="text-end">IVA</th>
+                                    <th class="text-end">IVA Retenido</th>
+                                    <th class="text-end">Total</th>
+                                {% endif %}
+                                <th>Correo</th>
+                                <th id="columnaEstadoEnvio" style="display:none;">Estado Envío</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for comp in comprobantes %}
+                                <tr id="comp-row-{{ loop.index0 }}">
+                                    <td data-label="Página">{{ loop.index }}</td>
+                                    {% if comp.tipo_documento == 'ISLR' %}
+                                        <td data-label="N° Control">
+                                            {% if comp.facturas %}
+                                                {% if comp.facturas|length > 1 %}
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#facturas-{{ loop.index0 }}">
+                                                        Ver {{ comp.facturas|length }} control(es)
+                                                    </button>
+                                                {% else %}
+                                                    {{ comp.facturas[0].numero_control if comp.facturas[0].numero_control else 'N/D' }}
+                                                {% endif %}
+                                            {% else %}
+                                                N/D
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Cliente">{{ comp.sujeto_retenido if comp.sujeto_retenido else 'N/D' }}</td>
+                                        <td data-label="RIF">{{ comp.rif_sujeto if comp.rif_sujeto else 'N/D' }}</td>
+                                        <td data-label="Facturas">
+                                            {% if comp.facturas %}
+                                                {% if comp.facturas|length > 1 %}
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#facturas-{{ loop.index0 }}">
+                                                        Ver {{ comp.facturas|length }} factura(s)
+                                                    </button>
+                                                {% else %}
+                                                    {{ comp.facturas[0].numero if comp.facturas[0].numero else 'N/D' }}
+                                                {% endif %}
+                                            {% else %}
+                                                N/D
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end" data-label="Monto Bruto">{{ comp.monto_total_bruto|monto }}</td>
+                                        <td class="text-end" data-label="Monto Gravable">{{ comp.monto_total_gravable|monto }}</td>
+                                        <td class="text-end" data-label="% Retención">{{ comp.porcentaje_retencion|monto }}%</td>
+                                        <td class="text-end" data-label="Monto Retenido">{{ comp.monto_total_retenido|monto }}</td>
+                                    {% else %}
+                                        <td data-label="N° Comprobante">{{ comp.numero_comprobante if comp.numero_comprobante else 'N/D' }}</td>
+                                        <td data-label="Cliente">{{ comp.sujeto_retenido if comp.sujeto_retenido else 'N/D' }}</td>
+                                        <td data-label="RIF">{{ comp.rif_sujeto if comp.rif_sujeto else 'N/D' }}</td>
+                                        <td data-label="N° Factura">{{ comp.numero_factura if comp.numero_factura else 'N/D' }}</td>
+                                        <td class="text-end" data-label="Base Imponible">{{ comp.base_imponible|monto }}</td>
+                                        <td class="text-end" data-label="IVA">{{ comp.iva|monto }}</td>
+                                        <td class="text-end" data-label="IVA Retenido">{{ comp.iva_retenido|monto }}</td>
+                                        <td class="text-end" data-label="Total">{{ comp.total|monto }}</td>
+                                    {% endif %}
+                                    <td data-label="Correo">
+                                        <div class="input-group">
+                                            <input type="email" class="form-control correo-input"
+                                                   value="{{ comp.correo or '' }}"
+                                                   data-index="{{ loop.index0 }}"
+                                                   placeholder="Ingrese correo"
+                                                   {% if comp.correo %}readonly{% endif %}>
+                                            {% if comp.correo %}
+                                                <span class="input-group-text text-success" title="Correo registrado en BD - No editable">
+                                                    <i class="bi bi-lock"></i>
+                                                </span>
+                                            {% else %}
+                                                <span class="input-group-text text-danger" title="Sin correo en BD - Editable">
+                                                    <i class="bi bi-pencil"></i>
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="estado-envio-celda" style="display:none;" data-label="Estado Envío">-</td>
+                                </tr>
+                                {% if comp.tipo_documento == 'ISLR' and comp.facturas and comp.facturas|length > 1 %}
+                                    <tr>
+                                        <td colspan="12" class="p-0 border-0">
+                                            <div id="facturas-{{ loop.index0 }}" class="collapse">
+                                                <div class="p-3 bg-light">
+                                                    <table class="table table-sm table-bordered">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>N° Factura</th>
+                                                                <th>N° Control</th>
+                                                                <th>Código</th>
+                                                                <th>Fecha</th>
+                                                                <th class="text-end">Bruto</th>
+                                                                <th class="text-end">Gravable</th>
+                                                                <th class="text-end">Retenido</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for factura in comp.facturas %}
+                                                                <tr>
+                                                                    <td>{{ factura.numero }}</td>
+                                                                    <td>{{ factura.numero_control if factura.numero_control else 'N/D' }}</td>
+                                                                    <td>{{ factura.codigo_retencion }}</td>
+                                                                    <td>{{ factura.fecha }}</td>
+                                                                    <td class="text-end">{{ factura.monto_bruto|monto }}</td>
+                                                                    <td class="text-end">{{ factura.monto_gravable|monto }}</td>
+                                                                    <td class="text-end">{{ factura.monto_retenido|monto }}</td>
+                                                                </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr style="display:none;">
+                                <th colspan="9" id="tfootPlaceholder"></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <!-- Totales modernos -->
+                <div class="totales-card">
+                    <div class="totales-item">
+                        <div class="totales-label">Total Comprobantes</div>
+                        <div class="totales-valor">{{ comprobantes|length }}</div>
+                    </div>
+                    {% if comprobantes and comprobantes[0].tipo_documento == 'ISLR' %}
+                    <div class="totales-item">
+                        <div class="totales-label">Monto Bruto</div>
+                        <div class="totales-valor">{{ totales.monto_bruto|monto }}</div>
+                    </div>
+                    <div class="totales-item">
+                        <div class="totales-label">Monto Gravable</div>
+                        <div class="totales-valor">{{ totales.monto_gravable|monto }}</div>
+                    </div>
+                    <div class="totales-item totales-main">
+                        <div class="totales-label">Total Retenido</div>
+                        <div class="totales-valor">{{ totales.monto_retenido|monto }}</div>
+                    </div>
+                    {% else %}
+                    <div class="totales-item">
+                        <div class="totales-label">Base Imponible</div>
+                        <div class="totales-valor">{{ totales.base|monto }}</div>
+                    </div>
+                    <div class="totales-item">
+                        <div class="totales-label">IVA</div>
+                        <div class="totales-valor">{{ totales.iva|monto }}</div>
+                    </div>
+                    <div class="totales-item totales-main">
+                        <div class="totales-label">IVA Retenido</div>
+                        <div class="totales-valor">{{ totales.retenido|monto }}</div>
+                    </div>
+                    <div class="totales-item">
+                        <div class="totales-label">Total</div>
+                        <div class="totales-valor">{{ totales.total|monto }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Toggle detalle -->
+        <div class="d-flex align-items-center justify-content-between mb-3 mt-2">
+            <button class="btn btn-primary btn-sm d-flex align-items-center gap-2"
+                    id="toggleDetalle"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#seccionDetalle"
+                    aria-expanded="false">
+                <i class="bi bi-list-ul"></i>
+                <span>Ver Detalle de Comprobantes</span>
+                <i class="bi bi-chevron-down" id="iconoDetalle" style="font-size:0.75rem;transition:transform .25s;"></i>
+            </button>
+            <span class="text-muted small">{{ comprobantes|length }} comprobante(s)</span>
+        </div>
+
+        <div class="collapse" id="seccionDetalle">
+        {% for comp in comprobantes %}
+            <div class="comprobante-card">
+                <div class="comprobante-header">
+                    <h5 class="mb-0">
+                        {% if comp.tipo_documento == 'ISLR' %}
+                            Comprobante ISLR — {{ comp.archivo_origen if comp.archivo_origen else 'Pág ' + comp.pagina|string }}{% if comp.total_paginas_archivo and comp.total_paginas_archivo > 1 %} (Pág {{ comp.pagina_en_archivo }}){% endif %}
+                        {% else %}
+                            Comprobante IVA — {{ comp.archivo_origen if comp.archivo_origen else 'Pág ' + comp.pagina|string }}{% if comp.total_paginas_archivo and comp.total_paginas_archivo > 1 %} (Pág {{ comp.pagina_en_archivo }}){% endif %} — N° {{ comp.numero_comprobante if comp.numero_comprobante else 'N/D' }}
+                        {% endif %}
+                    </h5>
+                    <span class="badge-comprobante">
+                        {% if comp.tipo_documento == 'ISLR' %}
+                            {{ comp.facturas|length }} factura(s)
+                        {% else %}
+                            Factura: {{ comp.numero_factura if comp.numero_factura else 'N/D' }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="comprobante-body">
+                    <div class="row p-3">
+                        <div class="col-md-4">
+                            <p class="mb-2"><strong><i class="bi bi-person"></i> Sujeto Retenido:</strong> {{ comp.sujeto_retenido if comp.sujeto_retenido else 'No extraído' }}</p>
+                            <p class="mb-2"><strong><i class="bi bi-card-text"></i> RIF:</strong> {{ comp.rif_sujeto if comp.rif_sujeto else 'No extraído' }}</p>
+                            <p class="mb-2">
+                                <strong><i class="bi bi-envelope"></i> Correo Registrado:</strong>
+                                {% if comp.correo %}
+                                    <a href="mailto:{{ comp.correo }}">{{ comp.correo }}</a>
+                                {% else %}
+                                    <span class="correo-missing">No especificado en BD</span>
+                                {% endif %}
+                            </p>
+                            <p class="mb-2"><strong><i class="bi bi-calendar"></i> Fecha:</strong>
+                                {% if comp.tipo_documento == 'ISLR' and comp.facturas and comp.facturas|length > 0 %}
+                                    {{ comp.facturas[0].fecha if comp.facturas[0].fecha else (comp.fecha_comprobante if comp.fecha_comprobante else "No especificada") }}
+                                {% else %}
+                                    {{ comp.fecha_comprobante if comp.fecha_comprobante else "No especificada" }}
+                                {% endif %}
+                            </p>
+                            {% if comp.tipo_documento == 'ISLR' %}
+                                <p class="mb-2"><strong><i class="bi bi-file-earmark-text"></i> Código Retención:</strong>
+                                    {% if comp.facturas and comp.facturas|length > 0 %}
+                                        {{ comp.facturas[0].codigo_retencion or comp.codigo_retencion or 'N/D' }}
+                                    {% else %}{{ comp.codigo_retencion or 'N/D' }}{% endif %}
+                                </p>
+                            {% endif %}
+                            <p class="mb-2"><strong><i class="bi bi-tag"></i> Tipo:</strong>
+                                {% if comp.tipo_documento == 'ISLR' %}ISLR (Impuesto Sobre la Renta)
+                                {% else %}IVA (Impuesto al Valor Agregado){% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-8">
+                            {% if comp.tipo_documento == 'ISLR' %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>N° Factura</th>
+                                                <th>N° Control</th>
+                                                <th>Código</th>
+                                                <th>Fecha</th>
+                                                <th class="text-end">Bruto</th>
+                                                <th class="text-end">Gravable</th>
+                                                <th class="text-end">% Ret.</th>
+                                                <th class="text-end">Retenido</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for factura in comp.facturas %}
+                                                <tr>
+                                                    <td>{{ factura.numero }}</td>
+                                                    <td>{{ factura.numero_control if factura.numero_control else 'N/D' }}</td>
+                                                    <td>{{ factura.codigo_retencion }}</td>
+                                                    <td>{{ factura.fecha }}</td>
+                                                    <td class="text-end">{{ factura.monto_bruto|monto }}</td>
+                                                    <td class="text-end">{{ factura.monto_gravable|monto }}</td>
+                                                    <td class="text-end">{{ factura.porcentaje_retencion|monto }}%</td>
+                                                    <td class="text-end">{{ factura.monto_retenido|monto }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                        <tfoot class="table-secondary">
+                                            <tr>
+                                                <th colspan="4">TOTALES</th>
+                                                <th class="text-end">{{ comp.monto_total_bruto|monto }}</th>
+                                                <th class="text-end">{{ comp.monto_total_gravable|monto }}</th>
+                                                <th class="text-end">{{ comp.porcentaje_retencion|monto }}%</th>
+                                                <th class="text-end">{{ comp.monto_total_retenido|monto }}</th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>N° Factura</th>
+                                                <th>Base Imponible</th>
+                                                <th>IVA</th>
+                                                <th>IVA Retenido</th>
+                                                <th>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>{{ comp.numero_factura if comp.numero_factura else 'N/D' }}</td>
+                                                <td class="text-end">{{ comp.base_imponible|monto }}</td>
+                                                <td class="text-end">{{ comp.iva|monto }}</td>
+                                                <td class="text-end">{{ comp.iva_retenido|monto }}</td>
+                                                <td class="text-end">{{ comp.total|monto }}</td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot class="table-secondary">
+                                            <tr>
+                                                <th>TOTALES</th>
+                                                <th class="text-end">{{ comp.base_imponible|monto }}</th>
+                                                <th class="text-end">{{ comp.iva|monto }}</th>
+                                                <th class="text-end">{{ comp.iva_retenido|monto }}</th>
+                                                <th class="text-end">{{ comp.total|monto }}</th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </div><!-- /seccionDetalle collapse -->
+
+        <div id="status-envio-general" class="alert" style="display:none;"></div>
+
+        <div class="mt-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <a href="{{ url_for('upload') }}" class="btn btn-secondary btn-action">
+                <i class="bi bi-arrow-left-circle me-1"></i> Volver a Cargar
+            </a>
+            <button class="btn btn-primary btn-action px-4" id="btnEnviar">
+                <i class="bi bi-send me-1"></i> Enviar Comprobantes
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== OVERLAY DE PROGRESO ===== -->
+    <div id="sendingOverlay">
+        <div class="overlay-card">
+            <div class="overlay-icon">📨</div>
+            <div class="overlay-title">Enviando comprobantes...</div>
+            <div class="overlay-subtitle" id="overlaySubtitle">Por favor espera, no cierres esta ventana.</div>
+            <div class="overlay-progress-bar">
+                <div class="overlay-progress-fill" id="overlayProgressFill"></div>
+            </div>
+            <div class="overlay-counter" id="overlayCounter">0 de 0 enviados</div>
+            <div class="overlay-log" id="overlayLog"></div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL CONFIRMACIÓN PROPIO ===== -->
+    <div class="modal fade" id="modalConfirm" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalConfirmTitle">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Confirmar envío
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modalConfirmBody" style="color:#1a1a2e;"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="modalConfirmOk">Continuar y enviar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block styles %}
+    <style>
+        .header-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .logo {
+            max-height: 80px;
+            margin-right: 20px;
+        }
+        .header-text {
+            flex-grow: 1;
+        }
+        .comprobante-card {
+            margin-bottom: 1.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,.05);
+        }
+        .comprobante-header {
+            background-color: #f8f9fa;
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 0.5rem 0.5rem 0 0 !important;
+        }
+        .card-header {
+            font-weight: 600;
+        }
+        .table-detalle {
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+        .badge-comprobante {
+            background-color: #6c757d;
+            color: white;
+            padding: 0.4em 0.6em;
+            font-size: 0.75em;
+            border-radius: 0.25rem;
+        }
+        .valores {
+            background-color: #f8f9fa;
+            border-radius: 0.25rem;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0;
+        }
+        .valores-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+        .valores-item:last-child {
+            margin-bottom: 0;
+            border-top: 1px dashed #6c757d;
+            padding-top: 0.25rem;
+            font-weight: bold;
+        }
+        .text-bold {
+            font-weight: 600;
+        }
+        .correo-missing {
+            color: #dc3545;
+            font-style: italic;
+        }
+        .status-enviado { color: #28a745; font-weight: bold; }
+        .status-fallido { color: #dc3545; font-weight: bold; }
+        .status-omitido { color: #ffc107; font-weight: bold; }
+        #status-envio-general { margin-top: 1rem; }
+        .resumen-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .resumen-item:last-child {
+            border-bottom: none;
+        }
+        .btn-action {
+            min-width: 180px;
+            margin: 5px;
+        }
+
+        /* -------- Ajustes de la columna y el campo de correo -------- */
+        #tablaComprobantes td[data-label="Correo"] {
+            min-width: 325px;   /* fuerza que la columna sea más amplia */
+        }
+        #tablaComprobantes td[data-label="Correo"] .input-group {
+            width: 100%;        /* input ocupa todo el ancho de la celda */
+        }
+        #tablaComprobantes td[data-label="Correo"] .correo-input {
+            width: 50%;
+            font-size: 0.95rem;
+            padding: 6px 10px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        .input-group-text {
+            cursor: default;
+        }
+        input:read-only {
+            background-color: #f8f9fa !important;
+            color: #6c757d;
+        }
+        
+        /* --- INICIO: NUEVA REGLA PARA OCULTAR ICONOS DE VALIDACIÓN --- */
+        .correo-input.is-valid,
+        .correo-input.is-invalid {
+            background-image: none !important;
+        }
+        /* --- FIN: NUEVA REGLA --- */
+
+
+        /* --- Header moderno --- */
+        .page-header-conf {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 0 20px 0;
+            border-bottom: 1px solid var(--border, #dde3ea);
+            margin-bottom: 24px;
+        }
+        .logo {
+            max-height: 52px;
+            border-radius: 8px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,.12));
+        }
+        .header-text h2 { font-size: 1.25rem; font-weight: 700; color: #1e3a5f; margin: 0; }
+        .header-text p  { font-size: 0.82rem; color: #5a6a7a; margin: 2px 0 0 0; }
+
+        /* --- Totales modernos --- */
+        .totales-card {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5080 100%);
+            border-radius: 12px;
+            padding: 16px 24px;
+            margin-top: -1px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            box-shadow: 0 4px 16px rgba(30,58,95,.18);
+        }
+        .totales-card .totales-label {
+            color: rgba(255,255,255,.75);
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 2px;
+        }
+        .totales-card .totales-valor {
+            color: #fff;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+        .totales-card .totales-item { text-align: center; }
+        .totales-card .totales-item.totales-main .totales-valor { font-size: 1.3rem; color: #7dd3fc; }
+
+        /* --- Tarjetas de comprobante --- */
+        .comprobante-card {
+            border: 1px solid #dde3ea;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.05);
+            margin-bottom: 1.25rem;
+            overflow: hidden;
+        }
+        .comprobante-header {
+            background: #f8fafc;
+            padding: 14px 18px;
+            border-bottom: 1px solid #dde3ea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .comprobante-header h5 { font-size: 0.92rem; font-weight: 600; color: #1e3a5f; margin: 0; }
+        .badge-comprobante {
+            background: #e0e7ff;
+            color: #3730a3;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        /* --- Info chips en detalle --- */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px;
+            padding: 16px 18px;
+        }
+        .info-chip {
+            background: #f8fafc;
+            border: 1px solid #e8edf2;
+            border-radius: 8px;
+            padding: 10px 14px;
+        }
+        .info-chip .chip-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #8a99a8;
+            margin-bottom: 3px;
+        }
+        .info-chip .chip-value {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #1a1a2e;
+        }
+        .info-chip .chip-value a { color: #2e86de; text-decoration: none; }
+        .info-chip.chip-warning { border-color: #fde68a; background: #fffbeb; }
+        .info-chip.chip-warning .chip-value { color: #92400e; }
+        .comprobante-body { border-top: 1px solid #edf1f5; }
+
+        /* --- Valores monetarios --- */
+        .valores {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 12px 18px;
+        }
+        .valores-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 0.85rem;
+            border-bottom: 1px solid #edf1f5;
+            color: #3a4a5c;
+        }
+        .valores-item:last-child {
+            border-bottom: none;
+            border-top: 2px solid #dde3ea;
+            margin-top: 4px;
+            padding-top: 8px;
+            font-weight: 700;
+            color: #1e3a5f;
+            font-size: 0.95rem;
+        }
+
+        /* --- Estados --- */
+        .correo-missing { color: #e74c3c; font-size: 0.82rem; font-style: italic; }
+        .status-enviado { color: #27ae60; font-weight: 600; }
+        .status-fallido { color: #e74c3c; font-weight: 600; }
+        .status-omitido { color: #f39c12; font-weight: 600; }
+
+        /* --- Columna correo --- */
+        #tablaComprobantes td[data-label="Correo"] { min-width: 300px; }
+        .correo-input { font-family: monospace; font-size: 0.875rem; }
+        .correo-input.is-valid, .correo-input.is-invalid { background-image: none !important; }
+        input:read-only { background-color: #f8f9fa !important; color: #6c757d; }
+
+        /* --- Botones de acción --- */
+        .btn-action { min-width: 160px; }
+
+        /* ===== OVERLAY DE CARGA ===== */
+        #sendingOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 25, 50, 0.82);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        #sendingOverlay.active { display: flex; }
+        .overlay-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 40px 48px;
+            text-align: center;
+            max-width: 460px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,.4);
+        }
+        .overlay-icon { font-size: 2.8rem; margin-bottom: 12px; }
+        .overlay-title { font-size: 1.15rem; font-weight: 700; color: #1e3a5f; margin-bottom: 4px; }
+        .overlay-subtitle { font-size: 0.875rem; color: #5a6a7a; margin-bottom: 20px; }
+        .overlay-progress-bar {
+            height: 8px;
+            border-radius: 99px;
+            background: #e8edf2;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .overlay-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2e86de, #27ae60);
+            border-radius: 99px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+        .overlay-counter { font-size: 0.82rem; color: #8a99a8; }
+        .overlay-log {
+            margin-top: 16px;
+            max-height: 130px;
+            overflow-y: auto;
+            text-align: left;
+            font-size: 0.78rem;
+            color: #3a4a5c;
+        }
+        .log-entry { padding: 3px 0; border-bottom: 1px solid #f0f4f8; display: flex; gap: 8px; }
+        .log-entry .log-icon { flex-shrink: 0; }
+        .log-entry.ok   { color: #27ae60; }
+        .log-entry.fail { color: #e74c3c; }
+        .log-entry.skip { color: #f39c12; }
+
+        /* --- Modal de confirmación propio --- */
+        #modalConfirm .modal-header { background: linear-gradient(135deg,#1e3a5f,#2d5080); color:#fff; border-radius: 12px 12px 0 0; }
+        #modalConfirm .modal-content { border-radius: 12px; border: none; box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+
+        @media (max-width: 768px) {
+            .info-grid { grid-template-columns: 1fr; }
+            .totales-card { flex-direction: column; text-align: center; }
+            .table-responsive thead { display: none; }
+            .table-responsive tr { display: block; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; }
+            .table-responsive td { display: block; text-align: right; padding-left: 50%; position: relative; border-bottom: 1px solid #eee; }
+            .table-responsive td::before { content: attr(data-label); position: absolute; left: 12px; width: 45%; font-weight: 600; text-align: left; }
+            .table-responsive tfoot tr { display: table-row; }
+            .table-responsive tfoot td { display: table-cell; text-align: center; padding-left: 12px; }
+            #tablaComprobantes td[data-label="Correo"] { min-width: unset; }
+            .overlay-card { padding: 28px 20px; }
+        }
+    </style>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+    const comprobantesData = {{ comprobantes|tojson|safe }};
+    const btnEnviar         = document.getElementById('btnEnviar');
+    const statusDiv         = document.getElementById('status-envio-general');
+    const colEstadoHeader   = document.getElementById('columnaEstadoEnvio');
+    const celdasEstado      = document.querySelectorAll('.estado-envio-celda');
+    const correoInputs      = document.querySelectorAll('.correo-input');
+
+    // Validación de correo en tiempo real
+    function validarCorreo(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+    correoInputs.forEach(input => {
+        if (!input.readOnly) {
+            input.addEventListener('input', function() {
+                const v = this.value.trim();
+                this.classList.remove('is-valid','is-invalid');
+                if (v) this.classList.add(validarCorreo(v) ? 'is-valid' : 'is-invalid');
+            });
+        }
+    });
+
+    // Overlay y modal
+    const overlay        = document.getElementById('sendingOverlay');
+    const overlayFill    = document.getElementById('overlayProgressFill');
+    const overlayCounter = document.getElementById('overlayCounter');
+    const overlayLog     = document.getElementById('overlayLog');
+    const overlaySubtitle= document.getElementById('overlaySubtitle');
+    const modalConfirm   = new bootstrap.Modal(document.getElementById('modalConfirm'));
+
+    function addLog(text, tipo) {
+        const icons = {ok:'✅', fail:'❌', skip:'⚠️'};
+        const div = document.createElement('div');
+        div.className = `log-entry ${tipo}`;
+        div.innerHTML = `<span class="log-icon">${icons[tipo]||'•'}</span><span>${text}</span>`;
+        overlayLog.appendChild(div);
+        overlayLog.scrollTop = overlayLog.scrollHeight;
+    }
+
+    async function ejecutarEnvio() {
+        // Leer correos editados
+        correoInputs.forEach(input => {
+            if (!input.readOnly) comprobantesData[input.dataset.index].correo = input.value.trim();
+        });
+
+        const total = comprobantesData.length;
+        overlayLog.innerHTML = '';
+        overlayFill.style.width = '0%';
+        overlayCounter.textContent = `0 de ${total}`;
+        overlaySubtitle.textContent = 'Por favor espera, no cierres esta ventana.';
+        overlay.classList.add('active');
+        btnEnviar.disabled = true;
+
+        if (colEstadoHeader) colEstadoHeader.style.display = '';
+        celdasEstado.forEach(c => c.style.display = '');
+
+        let enviados = 0, fallidos = 0, omitidos = 0;
+
+        for (let i = 0; i < total; i++) {
+            const comp   = comprobantesData[i];
+            const nombre = comp.sujeto_retenido || `Comprobante ${i+1}`;
+
+            if (!comp.correo || !comp.correo.trim()) {
+                // Llamar al backend igual para registrar el omitido en historial
+                try {
+                    await fetch('/enviar_correo_uno', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({index: i, correo: ''})
+                    });
+                } catch(e) { /* silencioso */ }
+                omitidos++;
+                comp._estado = 'omitido';
+                addLog(`${nombre} — Sin correo, omitido`, 'skip');
+            } else {
+                try {
+                    const resp = await fetch('/enviar_correo_uno', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({index: i, correo: comp.correo})
+                    });
+                    const result = await resp.json();
+                    if (result.status === 'enviado') {
+                        enviados++;
+                        comp._estado = 'enviado';
+                        addLog(`${nombre} → ${comp.correo}`, 'ok');
+                        const row = document.getElementById(`comp-row-${i}`);
+                        if (row) {
+                            const cell = row.querySelector('.estado-envio-celda');
+                            if (cell) { cell.textContent = 'Enviado'; cell.className = 'estado-envio-celda status-enviado'; }
+                        }
+                    } else {
+                        fallidos++;
+                        comp._estado = 'fallido';
+                        addLog(`${nombre} — Error al enviar`, 'fail');
+                    }
+                } catch(e) {
+                    fallidos++;
+                    comp._estado = 'fallido';
+                    addLog(`${nombre} — Error de conexión`, 'fail');
+                }
+            }
+            const pct = Math.round(((i+1)/total)*100);
+            overlayFill.style.width = pct + '%';
+            overlayCounter.textContent = `${i+1} de ${total} procesados`;
+        }
+
+        overlaySubtitle.textContent = `Completado: ${enviados} enviados, ${omitidos} omitidos, ${fallidos} fallidos.`;
+
+        // Construir resumen para el modal
+        let html = `
+            <div class="mb-3">
+                <h5 class="d-flex align-items-center gap-2">
+                    <i class="bi bi-check-circle-fill text-success fs-4"></i> Proceso de envío completado
+                </h5>
+            </div>
+            <div class="table-responsive mb-4">
+                <table class="table table-sm table-hover">
+                    <thead><tr><th>Comprobante</th><th>Cliente</th><th>Correo</th><th>Estado</th></tr></thead>
+                    <tbody>`;
+        comprobantesData.forEach((comp, i) => {
+            const estado = comp._estado || 'omitido';
+            const icon   = estado==='enviado' ? '✅' : estado==='fallido' ? '❌' : '⚠️';
+            const cls    = estado==='enviado' ? 'text-success' : estado==='fallido' ? 'text-danger' : 'text-warning';
+            html += `<tr>
+                <td>${comp.numero_comprobante||'N/D'}</td>
+                <td>${comp.sujeto_retenido||'N/D'}</td>
+                <td>${comp.correo||'—'}</td>
+                <td class="${cls} fw-semibold">${icon} ${estado}</td>
+            </tr>`;
+        });
+        html += `</tbody></table></div>
+            <div class="alert ${enviados===0&&fallidos>0?'alert-danger':fallidos>0?'alert-warning':'alert-success'}">
+                <strong>Total:</strong> ${comprobantesData.length} &nbsp;|&nbsp;
+                <strong>Enviados:</strong> ${enviados} &nbsp;|&nbsp;
+                <strong>Omitidos:</strong> ${omitidos} &nbsp;|&nbsp;
+                <strong>Fallidos:</strong> ${fallidos}
+            </div>`;
+        document.getElementById('resumenModalBody').innerHTML = html;
+
+        setTimeout(() => {
+            overlay.classList.remove('active');
+            btnEnviar.disabled = true;
+            btnEnviar.innerHTML = '<i class="bi bi-check-circle me-1"></i> Envío completado';
+            fetch('/cleanup', {method:'POST'}).catch(()=>{});
+            // Reemplazar historial del navegador para que el botón atrás no regrese aquí
+            history.replaceState(null, '', '/');
+            new bootstrap.Modal(document.getElementById('resumenModal')).show();
+        }, 1800);
+    }
+
+    btnEnviar.addEventListener('click', function() {
+        // Validar formatos
+        const invalidos = document.querySelectorAll('.correo-input.is-invalid:not([readonly])');
+        if (invalidos.length > 0) {
+            document.getElementById('modalConfirmBody').innerHTML =
+                '<i class="bi bi-x-circle text-danger me-2"></i>Hay correos con formato incorrecto. Por favor corrígelos antes de continuar.';
+            document.getElementById('modalConfirmTitle').innerHTML =
+                '<i class="bi bi-exclamation-triangle me-2"></i>Correos inválidos';
+            document.getElementById('modalConfirmOk').style.display = 'none';
+            modalConfirm.show();
+            return;
+        }
+
+        correoInputs.forEach(input => {
+            if (!input.readOnly) comprobantesData[input.dataset.index].correo = input.value.trim();
+        });
+
+        const sinCorreo = comprobantesData.filter(c => !c.correo || !c.correo.trim());
+        if (sinCorreo.length > 0) {
+            document.getElementById('modalConfirmBody').innerHTML =
+                `<i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                <strong>${sinCorreo.length} comprobante(s)</strong> no tienen correo y serán omitidos.<br><br>
+                ¿Deseas continuar de todas formas?`;
+            document.getElementById('modalConfirmTitle').innerHTML =
+                '<i class="bi bi-exclamation-triangle me-2"></i>Comprobantes sin correo';
+            document.getElementById('modalConfirmOk').style.display = '';
+            document.getElementById('modalConfirmOk').onclick = () => { modalConfirm.hide(); ejecutarEnvio(); };
+            modalConfirm.show();
+        } else {
+            ejecutarEnvio();
+        }
+    });
+
+    // --- Toggle detalle colapsable ---
+    const seccionDetalle = document.getElementById('seccionDetalle');
+    const iconoDetalle   = document.getElementById('iconoDetalle');
+    const spanDetalle    = document.getElementById('toggleDetalle').querySelector('span');
+
+    seccionDetalle.addEventListener('show.bs.collapse', function() {
+        iconoDetalle.style.transform = 'rotate(180deg)';
+        spanDetalle.textContent = 'Ocultar Detalle de Comprobantes';
+    });
+    seccionDetalle.addEventListener('hide.bs.collapse', function() {
+        iconoDetalle.style.transform = 'rotate(0deg)';
+        spanDetalle.textContent = 'Ver Detalle de Comprobantes';
+    });
+    // Si se llega aquí por botón adelante tras haber enviado, redirigir al inicio
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) {
+            const btn = document.getElementById('btnEnviar');
+            if (btn && btn.disabled) {
+                window.location.replace('/');
+            }
+        }
+    });
+
+    window.addEventListener('DOMContentLoaded', function() {
+        const sinCorreo = comprobantesData.filter(c => !c.correo).length;
+        if (sinCorreo > 0 && comprobantesData.length > 0) {
+            statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Atención:</strong> ${sinCorreo} comprobante(s) sin correo en la BD.
+                Puedes ingresar el correo manualmente en la tabla.`;
+            statusDiv.className = 'alert alert-warning';
+            statusDiv.style.display = 'block';
+        }
+        if (comprobantesData.length === 0) btnEnviar.disabled = true;
+    });
+</script>
+{% endblock %}
