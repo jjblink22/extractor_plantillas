@@ -573,14 +573,12 @@ def configuracion():
 @app.route('/usuarios')
 @login_required(roles=['admin'])
 def admin_usuarios():
-    # Query segura compatible con ambas versiones del schema
     usuarios = db_query("""
         SELECT id, username,
-               COALESCE(nombre_completo, nombre, username) as nombre,
+               COALESCE(nombre, username) as nombre,
                COALESCE(email, '') as email,
-               rol,
-               creado
-        FROM usuarios ORDER BY COALESCE(nombre_completo, nombre, username)
+               rol, creado
+        FROM usuarios ORDER BY COALESCE(nombre, username)
     """, fetchall=True) or []
     return render_template('admin_usuarios.html', usuarios=usuarios)
 
@@ -597,8 +595,8 @@ def crear_usuario():
     if db_query("SELECT id FROM usuarios WHERE username=%s", (username,), fetchone=True):
         flash(f'El usuario "{username}" ya existe.', 'danger')
         return redirect(url_for('admin_usuarios'))
-    db_query("INSERT INTO usuarios (username, password, nombre, nombre_completo, rol) VALUES (%s,%s,%s,%s,%s)",
-             (username, generate_password_hash(password), nombre, nombre, rol), commit=True)
+    db_query("INSERT INTO usuarios (username, password, nombre, rol) VALUES (%s,%s,%s,%s)",
+             (username, generate_password_hash(password), nombre, rol), commit=True)
     flash(f'Usuario "{nombre}" creado correctamente.', 'success')
     return redirect(url_for('admin_usuarios'))
 
