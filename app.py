@@ -574,10 +574,7 @@ def configuracion():
 @login_required(roles=['admin'])
 def admin_usuarios():
     usuarios = db_query("""
-        SELECT id, username,
-               COALESCE(nombre, username) as nombre,
-               COALESCE(email, '') as email,
-               rol, creado
+        SELECT id, username, COALESCE(nombre, username) as nombre, rol, creado
         FROM usuarios ORDER BY COALESCE(nombre, username)
     """, fetchall=True) or []
     return render_template('admin_usuarios.html', usuarios=usuarios)
