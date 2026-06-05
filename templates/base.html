@@ -87,8 +87,11 @@
       <i class="bi bi-clock-history"></i> Historial
     </a>
     {% if session.get('rol') == 'admin' %}
-    <a href="{{ url_for('configuracion') }}" class="nav-pill {% if request.path == '/configuracion' %}active{% endif %}">
+    <a href="{{ url_for('configuracion') }}" class="nav-pill {% if '/configuracion' in request.path %}active{% endif %}">
       <i class="bi bi-gear"></i> Configuración
+    </a>
+    <a href="{{ url_for('admin_usuarios') }}" class="nav-pill {% if '/usuarios' in request.path %}active{% endif %}">
+      <i class="bi bi-people"></i> Usuarios
     </a>
     {% endif %}
   </div>

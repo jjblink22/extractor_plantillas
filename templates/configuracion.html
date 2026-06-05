@@ -117,22 +117,22 @@
                 <div class="col-sm-4">
                   <label style="font-size:.7rem;color:var(--gray-500);">Primario (navbar)</label>
                   <div style="display:flex;gap:6px;align-items:center;">
-                    <input type="color" name="brand_primary" value="{{ cfg.brand_primary }}" style="width:36px;height:36px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;padding:2px;">
-                    <input type="text" name="brand_primary_text" value="{{ cfg.brand_primary }}" class="form-control" style="font-family:var(--font-mono);font-size:.72rem;" oninput="this.previousElementSibling.value=this.value">
+                    <input type="color" name="brand_primary" value="{{ cfg.brand_primary }}" id="cp_primary" style="width:36px;height:36px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;padding:2px;" oninput="document.getElementById('ct_primary').value=this.value">
+                    <input type="text" id="ct_primary" value="{{ cfg.brand_primary }}" class="form-control" style="font-family:var(--font-mono);font-size:.72rem;" oninput="document.getElementById('cp_primary').value=this.value">
                   </div>
                 </div>
                 <div class="col-sm-4">
                   <label style="font-size:.7rem;color:var(--gray-500);">Secundario (botones)</label>
                   <div style="display:flex;gap:6px;align-items:center;">
-                    <input type="color" name="brand_accent" value="{{ cfg.brand_accent }}" style="width:36px;height:36px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;padding:2px;">
-                    <input type="text" value="{{ cfg.brand_accent }}" class="form-control" style="font-family:var(--font-mono);font-size:.72rem;" oninput="this.previousElementSibling.value=this.value">
+                    <input type="color" name="brand_accent" value="{{ cfg.brand_accent }}" id="cp_accent" style="width:36px;height:36px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;padding:2px;" oninput="document.getElementById('ct_accent').value=this.value">
+                    <input type="text" id="ct_accent" value="{{ cfg.brand_accent }}" class="form-control" style="font-family:var(--font-mono);font-size:.72rem;" oninput="document.getElementById('cp_accent').value=this.value">
                   </div>
                 </div>
                 <div class="col-sm-4">
                   <label style="font-size:.7rem;color:var(--gray-500);">Acento (highlights)</label>
                   <div style="display:flex;gap:6px;align-items:center;">
-                    <input type="color" name="brand_highlight" value="{{ cfg.brand_highlight }}" style="width:36px;height:36px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;padding:2px;">
-                    <input type="text" value="{{ cfg.brand_highlight }}" class="form-control" style="font-family:var(--font-mono);font-size:.72rem;" oninput="this.previousElementSibling.value=this.value">
+                    <input type="color" name="brand_highlight" value="{{ cfg.brand_highlight }}" id="cp_highlight" style="width:36px;height:36px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;padding:2px;" oninput="document.getElementById('ct_highlight').value=this.value">
+                    <input type="text" id="ct_highlight" value="{{ cfg.brand_highlight }}" class="form-control" style="font-family:var(--font-mono);font-size:.72rem;" oninput="document.getElementById('cp_highlight').value=this.value">
                   </div>
                 </div>
               </div>
@@ -153,7 +153,7 @@
         <div style="padding:20px;display:flex;flex-direction:column;gap:12px;">
           <div style="background:var(--brand-primary);border-radius:var(--radius-md);padding:14px 18px;display:flex;align-items:center;gap:10px;">
             {% if cfg.brand_logo_url %}
-            <img src="{{ cfg.brand_logo_url }}" style="height:24px;filter:brightness(0) invert(1);" alt="Logo">
+            <img src="{{ cfg.brand_logo_url }}" style="height:24px;" alt="Logo">
             {% else %}
             <i class="bi bi-file-earmark-text-fill" style="color:#fff;font-size:1.1rem;"></i>
             {% endif %}

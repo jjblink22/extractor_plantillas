@@ -553,6 +553,67 @@ def configuracion():
     return render_template('configuracion.html', cfg=cfg, temas=temas)
 
 
+# ── Gestión de usuarios ───────────────────────────────────────────────────────
+@app.route('/usuarios')
+@login_required(roles=['admin'])
+def admin_usuarios():
+    usuarios = db_query(
+        "SELECT id, username, COALESCE(nombre, nombre_completo, username) as nombre, rol, creado FROM usuarios ORDER BY nombre",
+        fetchall=True) or []
+    return render_template('admin_usuarios.html', usuarios=usuarios)
+
+@app.route('/usuarios/crear', methods=['POST'])
+@login_required(roles=['admin'])
+def crear_usuario():
+    username = request.form.get('username','').strip()
+    nombre   = request.form.get('nombre','').strip()
+    password = request.form.get('password','').strip()
+    rol      = request.form.get('rol','usuario')
+    if not all([username, nombre, password]):
+        flash('Todos los campos son obligatorios.', 'danger')
+        return redirect(url_for('admin_usuarios'))
+    if db_query("SELECT id FROM usuarios WHERE username=%s", (username,), fetchone=True):
+        flash(f'El usuario "{username}" ya existe.', 'danger')
+        return redirect(url_for('admin_usuarios'))
+    db_query("INSERT INTO usuarios (username, password, nombre, nombre_completo, rol) VALUES (%s,%s,%s,%s,%s)",
+             (username, generate_password_hash(password), nombre, nombre, rol), commit=True)
+    flash(f'Usuario "{nombre}" creado correctamente.', 'success')
+    return redirect(url_for('admin_usuarios'))
+
+@app.route('/usuarios/<int:user_id>/eliminar', methods=['POST'])
+@login_required(roles=['admin'])
+def eliminar_usuario(user_id):
+    if user_id == session.get('user_id'):
+        flash('No puedes eliminar tu propio usuario.', 'danger')
+        return redirect(url_for('admin_usuarios'))
+    db_query("DELETE FROM usuarios WHERE id=%s", (user_id,), commit=True)
+    flash('Usuario eliminado.', 'success')
+    return redirect(url_for('admin_usuarios'))
+
+@app.route('/usuarios/<int:user_id>/cambiar_password', methods=['POST'])
+@login_required(roles=['admin'])
+def cambiar_password(user_id):
+    nueva = request.form.get('password','').strip()
+    if len(nueva) < 6:
+        flash('La contraseña debe tener al menos 6 caracteres.', 'danger')
+        return redirect(url_for('admin_usuarios'))
+    db_query("UPDATE usuarios SET password=%s WHERE id=%s",
+             (generate_password_hash(nueva), user_id), commit=True)
+    flash('Contraseña actualizada.', 'success')
+    return redirect(url_for('admin_usuarios'))
+
+@app.route('/usuarios/<int:user_id>/cambiar_rol', methods=['POST'])
+@login_required(roles=['admin'])
+def cambiar_rol(user_id):
+    if user_id == session.get('user_id'):
+        flash('No puedes cambiar tu propio rol.', 'danger')
+        return redirect(url_for('admin_usuarios'))
+    db_query("UPDATE usuarios SET rol=%s WHERE id=%s",
+             (request.form.get('rol','usuario'), user_id), commit=True)
+    flash('Rol actualizado.', 'success')
+    return redirect(url_for('admin_usuarios'))
+
+
 @app.route('/configuracion/probar', methods=['POST'])
 @login_required(roles=['admin'])
 def probar_correo():
