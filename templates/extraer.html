@@ -1,47 +1,96 @@
 {% extends "base.html" %}
-{% block title %} — Extraer{% endblock %}
+{% block title %} — Extraer PDFs{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center gap-3 mb-4">
-    <div class="p-2 rounded-3" style="background:#edfaf3;"><i class="bi bi-cloud-arrow-up fs-4" style="color:#27ae60;"></i></div>
-    <div><h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Extraer datos de PDFs</h2>
-    <p class="text-muted mb-0 small">Aplica una plantilla a uno o varios PDFs</p></div>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Extraer datos de PDFs</h1>
+    <p class="page-subtitle">Selecciona una plantilla y sube los documentos a procesar</p>
+  </div>
 </div>
-<div class="row justify-content-center"><div class="col-lg-7">
-<div class="card">
-    <div class="card-header"><i class="bi bi-cloud-arrow-up me-2" style="color:#27ae60;"></i>Configurar extracción</div>
-    <div class="card-body">
-        {% if not plantillas %}
-        <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            No hay plantillas disponibles. <a href="{{ url_for('nueva_plantilla') }}">Crea una primero</a>.
-        </div>
-        {% else %}
-        <form method="POST" enctype="multipart/form-data">
-            <div class="mb-3">
-                <label class="form-label fw-semibold">Plantilla a aplicar</label>
-                <select name="plantilla_id" class="form-select" required>
-                    <option value="">— Selecciona una plantilla —</option>
-                    {% for p in plantillas %}
-                    <option value="{{ p.id }}">{{ p.nombre }} ({{ p.tipo_documento }})</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="mb-4">
-                <label class="form-label fw-semibold">Archivos PDF</label>
-                <div class="border-2 border-dashed rounded-3 p-4 text-center" style="border:2px dashed #c7d2fe;background:#f8faff;cursor:pointer;" onclick="document.getElementById('inputPdfs').click()">
-                    <i class="bi bi-file-earmark-pdf-fill" style="font-size:2rem;color:#e74c3c;"></i>
-                    <div class="mt-2 text-muted small">Clic para seleccionar o arrastra aquí</div>
-                    <div id="archivosSeleccionados" class="mt-2 fw-semibold small" style="color:#2e86de;"></div>
-                </div>
-                <input type="file" id="inputPdfs" name="pdfs" accept=".pdf" multiple style="display:none;"
-                       onchange="document.getElementById('archivosSeleccionados').textContent = this.files.length + ' archivo(s) seleccionado(s)'">
-            </div>
-            <button type="submit" class="btn btn-success w-100 py-2 fw-semibold">
-                <i class="bi bi-play-circle me-1"></i>Extraer datos
-            </button>
-        </form>
-        {% endif %}
+
+<div class="row justify-content-center">
+<div class="col-lg-7">
+<div class="card-modern">
+  <div class="card-header-modern"><span class="card-title">Configurar extracción</span></div>
+  <div style="padding:24px;">
+
+  {% if not plantillas %}
+    <div class="empty-state" style="padding:32px 0;">
+      <div class="empty-state-icon"><i class="bi bi-layout-text-sidebar"></i></div>
+      <div class="empty-state-title">Sin plantillas disponibles</div>
+      <div class="empty-state-desc">Necesitas crear al menos una plantilla antes de extraer datos.</div>
+      <a href="{{ url_for('nueva_plantilla') }}" class="btn-primary-modern"><i class="bi bi-plus-lg"></i> Crear plantilla</a>
     </div>
+  {% else %}
+    <form method="POST" enctype="multipart/form-data" id="formExtraer">
+      <div class="form-group-modern">
+        <label class="form-label-modern">Plantilla a aplicar</label>
+        <select name="plantilla_id" class="form-select" required>
+          <option value="">— Selecciona una plantilla —</option>
+          {% for p in plantillas %}
+          <option value="{{ p.id }}">{{ p.nombre }} ({{ p.tipo_documento }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group-modern">
+        <label class="form-label-modern">Archivos PDF</label>
+        <label for="inputPdfs" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--gray-200);border-radius:var(--radius-lg);padding:32px;text-align:center;cursor:pointer;background:var(--gray-50);transition:all var(--motion-normal);" id="dropZone">
+          <i class="bi bi-file-earmark-pdf-fill" style="font-size:2rem;color:#dc2626;"></i>
+          <div style="font-size:var(--font-size-sm);font-weight:var(--font-weight-medium);color:var(--gray-700);">
+            Arrastra los PDFs aquí o haz clic para seleccionar
+          </div>
+          <div style="font-size:var(--font-size-xs);color:var(--gray-400);">Múltiples archivos permitidos</div>
+          <div id="fileInfo" style="font-size:var(--font-size-sm);font-weight:var(--font-weight-semibold);color:var(--brand-secondary);display:none;"></div>
+          <input type="file" id="inputPdfs" name="pdfs" accept=".pdf" multiple style="display:none;"
+                 onchange="updateFileInfo(this)">
+        </label>
+      </div>
+
+      <button type="submit" class="btn-primary-modern w-100" style="justify-content:center;padding:11px;" id="btnExtraer">
+        <i class="bi bi-play-circle-fill"></i> Extraer datos
+      </button>
+    </form>
+  {% endif %}
+
+  </div>
 </div>
-</div></div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateFileInfo(input) {
+  const info = document.getElementById('fileInfo');
+  const zone = document.getElementById('dropZone');
+  if (input.files.length > 0) {
+    const n = input.files.length;
+    info.textContent = n === 1 ? input.files[0].name : `${n} archivos seleccionados`;
+    info.style.display = 'block';
+    zone.style.borderColor = 'var(--brand-accent)';
+    zone.style.background = 'var(--brand-accent-glow)';
+  }
+}
+
+// Drag and drop
+const zone = document.getElementById('dropZone');
+if (zone) {
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--brand-accent)'; });
+  zone.addEventListener('dragleave', () => zone.style.borderColor = 'var(--gray-200)');
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    const input = document.getElementById('inputPdfs');
+    input.files = e.dataTransfer.files;
+    updateFileInfo(input);
+  });
+}
+
+document.getElementById('formExtraer')?.addEventListener('submit', function() {
+  const btn = document.getElementById('btnExtraer');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
+});
+</script>
 {% endblock %}

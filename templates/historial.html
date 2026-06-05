@@ -1,62 +1,77 @@
 {% extends "base.html" %}
 {% block title %} — Historial{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center gap-3 mb-4">
-    <div class="p-2 rounded-3" style="background:#eef2ff;"><i class="bi bi-clock-history fs-4" style="color:#2e86de;"></i></div>
-    <div><h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Historial de extracciones</h2>
-    <p class="text-muted mb-0 small">Últimas 200 extracciones realizadas</p></div>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Historial de extracciones</h1>
+    <p class="page-subtitle">Últimas 200 extracciones realizadas</p>
+  </div>
 </div>
+
 {% if extracciones %}
-<div class="card">
-    <div class="table-responsive">
-        <table class="table mb-0">
-            <thead><tr><th>Fecha</th><th>Archivo</th><th>Plantilla</th><th>Usuario</th><th>Estado</th><th>Datos</th></tr></thead>
-            <tbody>
-            {% for e in extracciones %}
-            <tr>
-                <td class="text-muted small">{{ e.fecha.strftime('%d/%m/%Y %H:%M') if e.fecha else '—' }}</td>
-                <td class="small">{{ e.archivo_nombre or '—' }}</td>
-                <td><span class="badge" style="background:#eef2ff;color:#2e86de;">{{ e.plantilla_nombre or 'N/D' }}</span></td>
-                <td class="small text-muted">{{ e.usuario_nombre or '—' }}</td>
-                <td>
-                    {% if e.estado == 'exitoso' %}
-                        <span class="badge" style="background:#27ae60;">✓ Exitoso</span>
-                    {% elif e.estado == 'revisar' %}
-                        <span class="badge" style="background:#f39c12;">⚠ Revisar</span>
-                    {% else %}
-                        <span class="badge" style="background:#e74c3c;">✗ Error</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if e.datos %}
-                    <button class="btn btn-outline-secondary btn-sm py-0" type="button"
-                            data-bs-toggle="collapse" data-bs-target="#datos{{ e.id }}">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                    {% endif %}
-                </td>
-            </tr>
-            {% if e.datos %}
-            <tr class="collapse" id="datos{{ e.id }}">
-                <td colspan="6" style="background:#f8fafc;padding:12px 24px;">
-                    <div style="font-family:monospace;font-size:0.78rem;">
-                    {% for k,v in e.datos.items() %}
-                        <div><span style="color:#8a99a8;">{{ k }}:</span> <span style="color:#1e3a5f;font-weight:500;">{{ v or '(vacío)' }}</span></div>
-                    {% endfor %}
-                    </div>
-                </td>
-            </tr>
-            {% endif %}
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<div class="card-modern">
+  <table class="table-modern">
+    <thead>
+      <tr>
+        <th>Fecha</th><th>Archivo</th><th>Plantilla</th><th>Usuario</th><th>Estado</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for e in extracciones %}
+    <tr>
+      <td style="font-size:var(--font-size-xs);color:var(--gray-400);white-space:nowrap;">
+        {{ e.fecha.strftime('%d/%m/%Y %H:%M') if e.fecha else '—' }}
+      </td>
+      <td class="td-main" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        {{ e.archivo_nombre or '—' }}
+      </td>
+      <td><span class="badge-modern badge-blue">{{ e.plantilla_nombre or 'N/D' }}</span></td>
+      <td style="color:var(--gray-500);font-size:var(--font-size-xs);">{{ e.usuario_nombre or '—' }}</td>
+      <td>
+        {% if e.estado == 'exitoso' %}
+          <span class="badge-modern badge-green"><i class="bi bi-check-circle-fill"></i> Exitoso</span>
+        {% elif e.estado == 'revisar' %}
+          <span class="badge-modern badge-amber"><i class="bi bi-exclamation-triangle-fill"></i> Revisar</span>
+        {% else %}
+          <span class="badge-modern badge-red"><i class="bi bi-x-circle-fill"></i> Error</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if e.datos %}
+        <button class="btn-ghost" style="font-size:.72rem;padding:4px 10px;"
+                data-bs-toggle="collapse" data-bs-target="#datos{{ e.id }}">
+          <i class="bi bi-eye"></i>
+        </button>
+        {% endif %}
+      </td>
+    </tr>
+    {% if e.datos %}
+    <tr class="collapse" id="datos{{ e.id }}">
+      <td colspan="6" style="background:var(--gray-50);padding:12px 20px;">
+        <div style="font-family:var(--font-mono);font-size:.75rem;display:flex;flex-wrap:wrap;gap:8px;">
+          {% for k,v in e.datos.items() %}
+          <div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:5px 10px;">
+            <span style="color:var(--gray-400);">{{ k }}:</span>
+            <span style="color:var(--gray-900);font-weight:500;margin-left:4px;">{{ v or '—' }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% else %}
-<div class="card"><div class="card-body text-center py-5">
-    <i class="bi bi-clock-history" style="font-size:3rem;color:#c7d2fe;"></i>
-    <p class="mt-3 text-muted">Aún no hay extracciones registradas.</p>
-    <a href="{{ url_for('extraer') }}" class="btn btn-primary"><i class="bi bi-cloud-arrow-up me-1"></i>Extraer ahora</a>
-</div></div>
+<div class="card-modern">
+  <div class="empty-state">
+    <div class="empty-state-icon"><i class="bi bi-clock-history"></i></div>
+    <div class="empty-state-title">Sin extracciones aún</div>
+    <div class="empty-state-desc">Las extracciones que realices aparecerán aquí con sus datos y estado.</div>
+    <a href="{{ url_for('extraer') }}" class="btn-primary-modern"><i class="bi bi-cloud-arrow-up"></i> Extraer ahora</a>
+  </div>
+</div>
 {% endif %}
 {% endblock %}

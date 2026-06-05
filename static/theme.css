@@ -1,0 +1,92 @@
+/*
+ * ══════════════════════════════════════════════════════
+ * EXTRACTOR DE PLANTILLAS — SISTEMA DE DISEÑO CENTRAL
+ * ══════════════════════════════════════════════════════
+ * Para personalizar la identidad visual de la empresa,
+ * edita SOLO este archivo. No toques ningún otro CSS.
+ *
+ * VARIABLES DISPONIBLES:
+ *  --brand-*      → Colores corporativos
+ *  --font-*       → Tipografías
+ *  --radius-*     → Bordes y redondeos
+ *  --shadow-*     → Elevaciones y sombras
+ *  --motion-*     → Velocidades de animación
+ * ══════════════════════════════════════════════════════
+ */
+
+/* ── FUENTES ─────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  /* IDENTIDAD DE MARCA — cambia estos para adaptar a cualquier empresa */
+  --brand-primary:       #0f2744;   /* Azul profundo principal */
+  --brand-secondary:     #1c5fa5;   /* Azul medio — botones, links */
+  --brand-accent:        #3b9eff;   /* Azul eléctrico — highlights */
+  --brand-accent-glow:   rgba(59, 158, 255, 0.18);
+
+  /* ESTADOS */
+  --color-success:       #16a34a;
+  --color-success-bg:    #f0fdf4;
+  --color-warning:       #d97706;
+  --color-warning-bg:    #fffbeb;
+  --color-danger:        #dc2626;
+  --color-danger-bg:     #fef2f2;
+  --color-info:          #0369a1;
+  --color-info-bg:       #f0f9ff;
+
+  /* NEUTROS */
+  --gray-50:  #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+
+  /* FONDO Y SUPERFICIES */
+  --bg-app:       #f0f4f8;
+  --bg-card:      #ffffff;
+  --bg-sidebar:   var(--brand-primary);
+  --border-color: var(--gray-200);
+
+  /* TIPOGRAFÍA */
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'DM Mono', 'Fira Code', monospace;
+  --font-size-xs:   0.72rem;
+  --font-size-sm:   0.82rem;
+  --font-size-base: 0.925rem;
+  --font-size-lg:   1.05rem;
+  --font-size-xl:   1.25rem;
+  --font-size-2xl:  1.5rem;
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  /* RADIOS */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-pill: 999px;
+
+  /* SOMBRAS */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.10);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.14);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,.20);
+
+  /* MOTION */
+  --motion-fast:   120ms;
+  --motion-normal: 200ms;
+  --motion-slow:   350ms;
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* NAVBAR HEIGHT */
+  --navbar-h: 58px;
+}

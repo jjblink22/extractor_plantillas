@@ -1,43 +1,54 @@
 {% extends "base.html" %}
 {% block title %} — Nueva Plantilla{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center gap-3 mb-4">
-    <a href="{{ url_for('lista_plantillas') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
-    <h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Nueva Plantilla</h2>
-</div>
-<div class="row justify-content-center">
-<div class="col-lg-6">
-<div class="card">
-    <div class="card-header"><i class="bi bi-layout-text-sidebar me-2" style="color:#2e86de;"></i>Datos de la plantilla</div>
-    <div class="card-body">
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label">Nombre de la plantilla *</label>
-                <input type="text" name="nombre" class="form-control" placeholder="Ej: Comprobante IVA JDE" required autofocus>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Descripción</label>
-                <textarea name="descripcion" class="form-control" rows="2" placeholder="¿Qué tipo de documento extrae esta plantilla?"></textarea>
-            </div>
-            <div class="mb-4">
-                <label class="form-label">Tipo de documento</label>
-                <select name="tipo_documento" class="form-select">
-                    <option value="generico">Genérico</option>
-                    <option value="iva">Comprobante IVA</option>
-                    <option value="islr">Comprobante ISLR</option>
-                    <option value="factura">Factura</option>
-                    <option value="otro">Otro</option>
-                </select>
-            </div>
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>
-                Después de crear la plantilla, podrás subir un PDF de muestra y definir visualmente las zonas de extracción.
-            </div>
-            <button type="submit" class="btn btn-primary w-100">
-                <i class="bi bi-arrow-right-circle me-1"></i>Crear y abrir editor
-            </button>
-        </form>
+
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="{{ url_for('lista_plantillas') }}" class="btn-ghost" style="padding:7px 10px;">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+      <h1 class="page-title">Nueva Plantilla</h1>
+      <p class="page-subtitle">Define el tipo de documento que vas a mapear</p>
     </div>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+<div class="col-lg-6 col-md-8">
+<div class="card-modern">
+  <div class="card-header-modern"><span class="card-title">Datos de la plantilla</span></div>
+  <div style="padding:24px;">
+    <form method="POST">
+      <div class="form-group-modern">
+        <label class="form-label-modern">Nombre *</label>
+        <input type="text" name="nombre" class="form-control" placeholder="Ej: Comprobante IVA JDE" required autofocus>
+      </div>
+      <div class="form-group-modern">
+        <label class="form-label-modern">Descripción</label>
+        <textarea name="descripcion" class="form-control" rows="2" placeholder="¿Qué tipo de documento extrae esta plantilla?"></textarea>
+      </div>
+      <div class="form-group-modern">
+        <label class="form-label-modern">Tipo de documento</label>
+        <select name="tipo_documento" class="form-select">
+          <option value="generico">Genérico</option>
+          <option value="iva">Comprobante IVA</option>
+          <option value="islr">Comprobante ISLR</option>
+          <option value="factura">Factura</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+
+      <div style="background:var(--color-info-bg);border:1px solid #bae6fd;border-radius:var(--radius-md);padding:12px 14px;margin-bottom:20px;font-size:var(--font-size-sm);color:var(--color-info);display:flex;gap:10px;align-items:flex-start;">
+        <i class="bi bi-info-circle-fill" style="flex-shrink:0;margin-top:1px;"></i>
+        <span>Después de crear la plantilla podrás subir un PDF de muestra y marcar visualmente las zonas de cada campo.</span>
+      </div>
+
+      <button type="submit" class="btn-primary-modern w-100" style="justify-content:center;">
+        <i class="bi bi-arrow-right-circle"></i> Crear y abrir editor
+      </button>
+    </form>
+  </div>
 </div>
 </div>
 </div>

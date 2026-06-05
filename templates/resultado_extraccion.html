@@ -1,113 +1,95 @@
 {% extends "base.html" %}
 {% block title %} — Resultado{% endblock %}
-
 {% block styles %}
 <style>
-    .campo-valor { background:#f8fafc; border:1px solid #dde3ea; border-radius:8px; padding:10px 14px; }
-    .campo-label { font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:#8a99a8; margin-bottom:2px; }
-    .campo-dato  { font-size:0.875rem; font-weight:500; color:#1a1a2e; word-break:break-word; }
-    .ok      { border-left:3px solid #27ae60; }
-    .revisar { border-left:3px solid #f39c12; background:#fffbeb; }
-    .vacio   { border-left:3px solid #e8edf2; }
-    .email-panel { background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:16px; margin-top:12px; }
+.campo-chip { display:inline-flex; flex-direction:column; background:var(--gray-50); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:10px 14px; gap:3px; }
+.campo-chip.ok     { border-left:3px solid var(--color-success); }
+.campo-chip.revisar{ border-left:3px solid var(--color-warning); background:var(--color-warning-bg); }
+.campo-chip.vacio  { border-left:3px solid var(--gray-200); }
+.campo-chip-label  { font-size:.65rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--gray-400); }
+.campo-chip-valor  { font-size:var(--font-size-sm); font-weight:500; color:var(--gray-900); word-break:break-word; }
+.email-panel { background:var(--color-info-bg); border:1px solid #bae6fd; border-radius:var(--radius-md); padding:16px; margin-top:16px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center gap-3 mb-4">
-    <div class="p-2 rounded-3" style="background:#edfaf3;">
-        <i class="bi bi-check-circle-fill fs-4" style="color:#27ae60;"></i>
-    </div>
-    <div>
-        <h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Resultado de extracción</h2>
-        <p class="text-muted mb-0 small">{{ resultados|length }} archivo(s) procesado(s)</p>
-    </div>
-    <div class="ms-auto d-flex gap-2">
-        <a href="{{ url_for('extraer') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Extraer más
-        </a>
-        <a href="{{ url_for('historial') }}" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-clock-history me-1"></i>Ver historial
-        </a>
-    </div>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Resultado de extracción</h1>
+    <p class="page-subtitle">{{ resultados|length }} archivo(s) procesado(s)</p>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <a href="{{ url_for('extraer') }}" class="btn-ghost"><i class="bi bi-arrow-left me-1"></i>Extraer más</a>
+    <a href="{{ url_for('historial') }}" class="btn-ghost"><i class="bi bi-clock-history me-1"></i>Historial</a>
+  </div>
 </div>
 
 {% for r in resultados %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-file-earmark-pdf text-danger me-2"></i>{{ r.archivo }}</span>
-        {% if r.estado == 'exitoso' %}
-            <span class="badge" style="background:#27ae60;">✓ Exitoso</span>
-        {% elif r.estado == 'revisar' %}
-            <span class="badge" style="background:#f39c12;">⚠ Revisar campos</span>
-        {% else %}
-            <span class="badge" style="background:#e74c3c;">✗ Error</span>
-        {% endif %}
+<div class="card-modern mb-4 stagger">
+  <div class="card-header-modern">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <i class="bi bi-file-earmark-pdf-fill" style="color:#dc2626;"></i>
+      <span style="font-size:var(--font-size-sm);font-weight:600;color:var(--gray-800);">{{ r.archivo }}</span>
+    </div>
+    {% if r.estado == 'exitoso' %}
+      <span class="badge-modern badge-green"><i class="bi bi-check-circle-fill"></i> Exitoso</span>
+    {% elif r.estado == 'revisar' %}
+      <span class="badge-modern badge-amber"><i class="bi bi-exclamation-triangle-fill"></i> Revisar</span>
+    {% else %}
+      <span class="badge-modern badge-red"><i class="bi bi-x-circle-fill"></i> Error</span>
+    {% endif %}
+  </div>
+
+  {% if r.datos %}
+  <div style="padding:20px;">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+      {% for campo, valor in r.datos.items() %}
+      {% set conf = r.confianza.get(campo, 'ok') if r.confianza else 'ok' %}
+      <div class="campo-chip {{ conf }}">
+        <div class="campo-chip-label">{{ campo }}</div>
+        <div class="campo-chip-valor">{{ valor or '(vacío)' }}</div>
+      </div>
+      {% endfor %}
     </div>
 
-    {% if r.datos %}
-    <div class="card-body">
-        <div class="row g-2 mb-3">
-            {% for campo, valor in r.datos.items() %}
-            <div class="col-md-4 col-sm-6">
-                {% set conf = r.confianza.get(campo, 'ok') if r.confianza else 'ok' %}
-                <div class="campo-valor {{ conf }}">
-                    <div class="campo-label">{{ campo }}
-                        {% if conf == 'ok' %}<i class="bi bi-check-circle-fill text-success ms-1"></i>
-                        {% elif conf == 'revisar' %}<i class="bi bi-exclamation-triangle-fill text-warning ms-1"></i>
-                        {% elif conf == 'vacio' %}<i class="bi bi-dash-circle text-muted ms-1"></i>
-                        {% endif %}
-                    </div>
-                    <div class="campo-dato">{{ valor or '(vacío)' }}</div>
-                </div>
-            </div>
-            {% endfor %}
+    {% if r.pdf_path %}
+    <div class="email-panel">
+      <div style="font-size:var(--font-size-sm);font-weight:600;color:var(--color-info);margin-bottom:12px;">
+        <i class="bi bi-envelope-fill me-2"></i>Enviar por correo
+      </div>
+      <div class="row g-2">
+        <div class="col-md-5">
+          <label class="form-label-modern" style="margin-bottom:4px;">Destinatario</label>
+          <input type="email" class="form-control correo-dest" placeholder="cliente@empresa.com"
+                 value="{{ r.datos.get('correo', r.datos.get('email', '')) }}">
         </div>
-
-        {% if r.pdf_path %}
-        <div class="email-panel">
-            <div class="fw-semibold mb-3" style="color:#0369a1;font-size:0.875rem;">
-                <i class="bi bi-envelope me-2"></i>Enviar por correo
-            </div>
-            <div class="row g-2">
-                <div class="col-md-5">
-                    <label class="form-label" style="font-size:0.78rem;">Correo destinatario</label>
-                    <input type="email" class="form-control form-control-sm correo-dest"
-                           placeholder="cliente@empresa.com"
-                           value="{{ r.datos.get('correo', r.datos.get('email', r.datos.get('correo_cliente', ''))) }}">
-                </div>
-                <div class="col-md-7">
-                    <label class="form-label" style="font-size:0.78rem;">Asunto</label>
-                    <input type="text" class="form-control form-control-sm correo-asunto"
-                           value="Documento: {{ r.archivo }}">
-                </div>
-                <div class="col-12">
-                    <label class="form-label" style="font-size:0.78rem;">Mensaje</label>
-                    <textarea class="form-control form-control-sm correo-cuerpo" rows="3">Estimado/a {{ r.datos.get('cliente', r.datos.get('nombre_cliente', '')) }},
-
-Adjunto encontrará el documento solicitado.
-
-Saludos cordiales.</textarea>
-                </div>
-                <div class="col-12 d-flex justify-content-between align-items-center">
-                    <div class="resultado-envio small"></div>
-                    <button class="btn btn-primary btn-sm btn-enviar-correo"
-                            data-pdf="{{ r.pdf_path }}"
-                            data-archivo="{{ r.archivo }}">
-                        <i class="bi bi-send me-1"></i>Enviar
-                    </button>
-                </div>
-            </div>
+        <div class="col-md-7">
+          <label class="form-label-modern" style="margin-bottom:4px;">Asunto</label>
+          <input type="text" class="form-control correo-asunto" value="Documento: {{ r.archivo }}">
         </div>
-        {% endif %}
-    </div>
-    {% elif r.error %}
-    <div class="card-body">
-        <div class="alert alert-danger py-2 small mb-0">
-            <i class="bi bi-x-circle me-2"></i>{{ r.error }}
+        <div class="col-12">
+          <label class="form-label-modern" style="margin-bottom:4px;">Mensaje</label>
+          <textarea class="form-control correo-cuerpo" rows="2">Estimado/a {{ r.datos.get('cliente', '') }},\n\nAdjunto encontrará el documento solicitado.\n\nSaludos cordiales.</textarea>
         </div>
+        <div class="col-12" style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="resultado-envio" style="font-size:var(--font-size-xs);"></div>
+          <button class="btn-primary-modern btn-enviar-correo" style="font-size:.78rem;padding:7px 14px;"
+                  data-pdf="{{ r.pdf_path }}" data-archivo="{{ r.archivo }}">
+            <i class="bi bi-send"></i> Enviar
+          </button>
+        </div>
+      </div>
     </div>
     {% endif %}
+  </div>
+  {% elif r.error %}
+  <div style="padding:16px;">
+    <div style="background:var(--color-danger-bg);border:1px solid #fecaca;border-radius:var(--radius-md);padding:10px 14px;font-size:var(--font-size-sm);color:var(--color-danger);display:flex;gap:8px;">
+      <i class="bi bi-x-circle-fill" style="flex-shrink:0;margin-top:1px;"></i>
+      {{ r.error }}
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endfor %}
 {% endblock %}
@@ -115,40 +97,30 @@ Saludos cordiales.</textarea>
 {% block scripts %}
 <script>
 document.querySelectorAll('.btn-enviar-correo').forEach(btn => {
-    btn.addEventListener('click', async function() {
-        const panel  = this.closest('.email-panel');
-        const correo = panel.querySelector('.correo-dest').value.trim();
-        const asunto = panel.querySelector('.correo-asunto').value.trim();
-        const cuerpo = panel.querySelector('.correo-cuerpo').value.trim();
-        const resDiv = panel.querySelector('.resultado-envio');
-        if (!correo) { resDiv.innerHTML = '<span class="text-danger">Ingresa un correo.</span>'; return; }
-        this.disabled = true;
-        this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
-        resDiv.innerHTML = '';
-        try {
-            const resp = await fetch('/extraer/enviar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    correo, asunto, cuerpo,
-                    pdf_path: this.dataset.pdf,
-                    archivo_nombre: this.dataset.archivo
-                })
-            });
-            const d = await resp.json();
-            resDiv.innerHTML = d.success
-                ? `<span class="text-success"><i class="bi bi-check-circle me-1"></i>${d.message}</span>`
-                : `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>${d.message}</span>`;
-            this.innerHTML = d.success
-                ? '<i class="bi bi-check-circle me-1"></i>Enviado'
-                : '<i class="bi bi-send me-1"></i>Enviar';
-            if (!d.success) this.disabled = false;
-        } catch(e) {
-            resDiv.innerHTML = '<span class="text-danger">Error de conexión.</span>';
-            this.disabled = false;
-            this.innerHTML = '<i class="bi bi-send me-1"></i>Enviar';
-        }
-    });
+  btn.addEventListener('click', async function() {
+    const panel  = this.closest('.email-panel');
+    const correo = panel.querySelector('.correo-dest').value.trim();
+    const asunto = panel.querySelector('.correo-asunto').value.trim();
+    const cuerpo = panel.querySelector('.correo-cuerpo').value.trim();
+    const resDiv = panel.querySelector('.resultado-envio');
+    if (!correo) { resDiv.innerHTML = '<span style="color:var(--color-danger);">Ingresa un correo.</span>'; return; }
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    try {
+      const resp = await fetch('/extraer/enviar', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ correo, asunto, cuerpo, pdf_path: this.dataset.pdf, archivo_nombre: this.dataset.archivo })
+      });
+      const d = await resp.json();
+      resDiv.innerHTML = `<span style="color:var(--${d.success?'color-success':'color-danger'});">${d.message}</span>`;
+      this.innerHTML = d.success ? '<i class="bi bi-check-circle"></i> Enviado' : '<i class="bi bi-send"></i> Enviar';
+      if (!d.success) this.disabled = false;
+    } catch(e) {
+      resDiv.innerHTML = '<span style="color:var(--color-danger);">Error de conexión</span>';
+      this.disabled = false;
+      this.innerHTML = '<i class="bi bi-send"></i> Enviar';
+    }
+  });
 });
 </script>
 {% endblock %}
