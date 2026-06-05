@@ -1,0 +1,9 @@
+/* TEMA: Esmeralda — Verde corporativo (ej: banca, seguros) */
+:root {
+  --brand-primary:    #064e3b;
+  --brand-secondary:  #059669;
+  --brand-accent:     #10b981;
+  --brand-accent-glow:rgba(16,185,129,.18);
+  --bg-app:           #f0fdf4;
+  --bg-sidebar:       var(--brand-primary);
+}

@@ -1,46 +1,151 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Extractor de Plantillas — Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family:'Inter',sans-serif; background:linear-gradient(135deg,#1e3a5f,#2d5080); min-height:100vh; display:flex; align-items:center; justify-content:center; }
-        .login-card { background:#fff; border-radius:16px; padding:40px 48px; width:100%; max-width:400px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
-        .login-icon { font-size:2.5rem; color:#2e86de; }
-        .form-control { border-radius:8px; padding:.6rem 1rem; }
-        .form-control:focus { border-color:#2e86de; box-shadow:0 0 0 3px rgba(46,134,222,.15); }
-        .btn-login { background:#2e86de; border:none; border-radius:8px; padding:.65rem; font-weight:600; width:100%; }
-        .btn-login:hover { background:#1a6bbf; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Iniciar sesión</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='themes/' + (brand_theme or 'default') + '.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='components.css') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  {% if brand_primary or brand_accent %}
+  <style>:root {
+    {% if brand_primary %}--brand-primary:   {{ brand_primary }};{% endif %}
+    {% if brand_accent  %}--brand-secondary: {{ brand_accent }};{% endif %}
+    {% if brand_highlight %}--brand-accent:  {{ brand_highlight }};{% endif %}
+  }</style>
+  {% endif %}
+  <style>
+    body {
+      min-height:100vh; padding-top:0;
+      background: linear-gradient(135deg, var(--brand-primary) 0%, color-mix(in srgb, var(--brand-primary) 70%, #000) 100%);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .login-wrap {
+      width:100%; max-width:400px; padding:16px;
+    }
+    .login-card {
+      background:#fff; border-radius:var(--radius-xl);
+      box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255,255,255,.05);
+      overflow:hidden;
+    }
+    .login-header {
+      padding:32px 32px 24px;
+      text-align:center;
+      border-bottom:1px solid var(--gray-100);
+    }
+    .login-logo-wrap {
+      width:56px; height:56px;
+      border-radius:var(--radius-lg);
+      background:var(--brand-primary);
+      display:flex; align-items:center; justify-content:center;
+      margin:0 auto 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.2);
+    }
+    .login-body { padding:28px 32px 32px; }
+    .input-group-modern {
+      position:relative; margin-bottom:16px;
+    }
+    .input-group-modern i {
+      position:absolute; left:13px; top:50%; transform:translateY(-50%);
+      color:var(--gray-400); font-size:.9rem; pointer-events:none;
+    }
+    .input-group-modern input {
+      width:100%; padding:10px 12px 10px 36px;
+      font-family:var(--font-sans); font-size:var(--font-size-sm);
+      border:1.5px solid var(--gray-200); border-radius:var(--radius-md);
+      outline:none; transition:border-color var(--motion-fast), box-shadow var(--motion-fast);
+      color:var(--gray-800);
+    }
+    .input-group-modern input:focus {
+      border-color:var(--brand-accent);
+      box-shadow:0 0 0 3px var(--brand-accent-glow);
+    }
+    .btn-login {
+      width:100%; padding:11px;
+      background:var(--brand-primary);
+      color:#fff; border:none;
+      border-radius:var(--radius-md);
+      font-family:var(--font-sans);
+      font-size:var(--font-size-sm);
+      font-weight:var(--font-weight-semibold);
+      cursor:pointer; margin-top:8px;
+      transition:background var(--motion-fast), transform var(--motion-fast) var(--ease-spring);
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn-login:hover {
+      background:var(--brand-secondary);
+      transform:translateY(-1px);
+    }
+    .error-msg {
+      background:var(--color-danger-bg); border:1px solid #fecaca;
+      border-radius:var(--radius-md); padding:10px 14px;
+      font-size:var(--font-size-xs); color:var(--color-danger);
+      display:flex; gap:8px; align-items:center; margin-bottom:16px;
+    }
+  </style>
 </head>
 <body>
-    <div class="login-card">
-        <div class="text-center mb-4">
-            <i class="bi bi-file-earmark-text-fill login-icon"></i>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-            <h4 class="fw-bold mt-2 mb-0" style="color:#1e3a5f;">Extractor de Plantillas</h4>
-            <p class="text-muted small">Extracción inteligente de documentos PDF</p>
-        </div>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% for cat, msg in messages %}
-                <div class="alert alert-danger py-2 small mb-3">{{ msg }}</div>
-            {% endfor %}
-        {% endwith %}
-        <form method="POST">
-            <div class="mb-3">
-                <label class="form-label fw-semibold small text-muted">Usuario</label>
-                <input type="text" name="username" class="form-control" placeholder="usuario" required autofocus>
-            </div>
-            <div class="mb-4">
-                <label class="form-label fw-semibold small text-muted">Contraseña</label>
-                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-login text-white">Ingresar</button>
-        </form>
+
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-logo-wrap">
+        {% if brand_logo_url %}
+          <img src="{{ brand_logo_url }}" alt="Logo" style="height:32px;filter:brightness(0) invert(1);">
+        {% else %}
+          <i class="bi bi-file-earmark-text-fill" style="font-size:1.5rem;color:#fff;"></i>
+        {% endif %}
+      </div>
+      <div style="font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);color:var(--gray-900);letter-spacing:-.02em;">
+        {{ brand_name }}
+      </div>
+      {% if brand_sub %}
+      <div style="font-size:var(--font-size-xs);color:var(--gray-400);margin-top:4px;">{{ brand_sub }}</div>
+      {% endif %}
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <div class="login-body">
+      {% with messages = get_flashed_messages() %}
+        {% for msg in messages %}
+        <div class="error-msg">
+          <i class="bi bi-exclamation-circle-fill"></i> {{ msg }}
+        </div>
+        {% endfor %}
+      {% endwith %}
+
+      <form method="POST">
+        <div style="margin-bottom:6px;">
+          <label style="font-size:var(--font-size-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);">
+            Usuario
+          </label>
+        </div>
+        <div class="input-group-modern">
+          <i class="bi bi-person"></i>
+          <input type="text" name="username" placeholder="Ingresa tu usuario" required autofocus autocomplete="username">
+        </div>
+
+        <div style="margin-bottom:6px;margin-top:8px;">
+          <label style="font-size:var(--font-size-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);">
+            Contraseña
+          </label>
+        </div>
+        <div class="input-group-modern">
+          <i class="bi bi-lock"></i>
+          <input type="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="btn-login">
+          <i class="bi bi-box-arrow-in-right"></i> Ingresar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:16px;font-size:var(--font-size-xs);color:rgba(255,255,255,.4);">
+    {{ brand_name }} · Sistema de extracción de documentos
+  </div>
+</div>
+
 </body>
 </html>

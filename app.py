@@ -152,7 +152,15 @@ def init_db():
         ('smtp_port',    os.getenv('SMTP_PORT', '587')),
         ('email_user',   os.getenv('EMAIL_USER', '')),
         ('email_pass',   os.getenv('EMAIL_PASS', '')),
-        ('email_nombre', os.getenv('EMAIL_NOMBRE', 'Extractor de Documentos')),
+        ('email_nombre',   os.getenv('EMAIL_NOMBRE', 'Extractor de Documentos')),
+        # ── Identidad de marca (marca blanca) ──
+        ('brand_name',     'Extractor de Plantillas'),
+        ('brand_sub',      'Extracción inteligente de documentos'),
+        ('brand_logo_url', ''),
+        ('brand_theme',    'default'),
+        ('brand_primary',  '#0f2744'),
+        ('brand_accent',   '#1c5fa5'),
+        ('brand_highlight','#3b9eff'),
     ]
     for clave, valor in config_defaults:
         try:
@@ -172,6 +180,28 @@ def set_config(clave, valor):
     db_query("""INSERT INTO configuracion (clave, valor) VALUES (%s,%s)
                 ON CONFLICT (clave) DO UPDATE SET valor=EXCLUDED.valor, actualizado=NOW()""",
              (clave, valor), commit=True)
+
+# ── Context Processor: inyecta marca en TODOS los templates automáticamente ──
+@app.context_processor
+def inject_brand():
+    """
+    Variables de marca disponibles en cualquier template sin pasarlas manualmente.
+    Para personalizar una empresa: cambiar estos valores en Configuración → Marca.
+    """
+    try:
+        return dict(
+            brand_name    = get_config('brand_name',    'Extractor de Plantillas'),
+            brand_sub     = get_config('brand_sub',     'Extracción inteligente de documentos'),
+            brand_logo_url= get_config('brand_logo_url', ''),
+            brand_theme   = get_config('brand_theme',   'default'),
+            brand_primary = get_config('brand_primary',  '#0f2744'),
+            brand_accent  = get_config('brand_accent',   '#1c5fa5'),
+            brand_highlight=get_config('brand_highlight','#3b9eff'),
+        )
+    except Exception:
+        return dict(brand_name='Extractor', brand_sub='', brand_logo_url='',
+                    brand_theme='default', brand_primary='#0f2744',
+                    brand_accent='#1c5fa5', brand_highlight='#3b9eff')
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 def login_required(roles=None):
@@ -472,13 +502,33 @@ def enviar_extraido():
 @login_required(roles=['admin'])
 def configuracion():
     if request.method == 'POST':
-        set_config('smtp_server',  request.form.get('smtp_server','').strip())
-        set_config('smtp_port',    request.form.get('smtp_port','587').strip())
-        set_config('email_user',   request.form.get('email_user','').strip())
-        set_config('email_nombre', request.form.get('email_nombre','').strip())
-        if request.form.get('email_pass','').strip():
-            set_config('email_pass', request.form.get('email_pass').strip())
-        flash('Configuración guardada correctamente.', 'success')
+        seccion = request.form.get('seccion', 'smtp')
+
+        if seccion == 'smtp':
+            set_config('smtp_server',  request.form.get('smtp_server','').strip())
+            set_config('smtp_port',    request.form.get('smtp_port','587').strip())
+            set_config('email_user',   request.form.get('email_user','').strip())
+            set_config('email_nombre', request.form.get('email_nombre','').strip())
+            if request.form.get('email_pass','').strip():
+                set_config('email_pass', request.form.get('email_pass').strip())
+            flash('Configuración SMTP guardada.', 'success')
+
+        elif seccion == 'marca':
+            set_config('brand_name',      request.form.get('brand_name','').strip())
+            set_config('brand_sub',       request.form.get('brand_sub','').strip())
+            set_config('brand_theme',     request.form.get('brand_theme','default').strip())
+            set_config('brand_primary',   request.form.get('brand_primary','#0f2744').strip())
+            set_config('brand_accent',    request.form.get('brand_accent','#1c5fa5').strip())
+            set_config('brand_highlight', request.form.get('brand_highlight','#3b9eff').strip())
+            # Logo upload
+            logo = request.files.get('brand_logo')
+            if logo and logo.filename:
+                ext  = os.path.splitext(secure_filename(logo.filename))[1].lower()
+                path = os.path.join(app.static_folder, f'brand_logo{ext}')
+                logo.save(path)
+                set_config('brand_logo_url', url_for('static', filename=f'brand_logo{ext}'))
+            flash('Identidad de marca guardada.', 'success')
+
         return redirect(url_for('configuracion'))
 
     cfg = {
@@ -487,8 +537,20 @@ def configuracion():
         'email_user':   get_config('email_user'),
         'email_pass':   get_config('email_pass'),
         'email_nombre': get_config('email_nombre', 'Extractor de Documentos'),
+        'brand_name':     get_config('brand_name', 'Extractor de Plantillas'),
+        'brand_sub':      get_config('brand_sub', ''),
+        'brand_logo_url': get_config('brand_logo_url', ''),
+        'brand_theme':    get_config('brand_theme', 'default'),
+        'brand_primary':  get_config('brand_primary', '#0f2744'),
+        'brand_accent':   get_config('brand_accent', '#1c5fa5'),
+        'brand_highlight':get_config('brand_highlight','#3b9eff'),
     }
-    return render_template('configuracion.html', cfg=cfg)
+    # Temas disponibles
+    themes_dir = os.path.join(app.static_folder, 'themes')
+    temas = []
+    if os.path.exists(themes_dir):
+        temas = [f.replace('.css','') for f in os.listdir(themes_dir) if f.endswith('.css')]
+    return render_template('configuracion.html', cfg=cfg, temas=temas)
 
 
 @app.route('/configuracion/probar', methods=['POST'])

@@ -1,0 +1,9 @@
+/* TEMA: Default — Azul marino corporativo */
+:root {
+  --brand-primary:    #0f2744;
+  --brand-secondary:  #1c5fa5;
+  --brand-accent:     #3b9eff;
+  --brand-accent-glow:rgba(59,158,255,.18);
+  --bg-app:           #f0f4f8;
+  --bg-sidebar:       var(--brand-primary);
+}

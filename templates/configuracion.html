@@ -1,124 +1,298 @@
 {% extends "base.html" %}
 {% block title %} — Configuración{% endblock %}
+
+{% block styles %}
+<style>
+  .config-tabs { display:flex; gap:4px; margin-bottom:24px; border-bottom:1px solid var(--gray-100); padding-bottom:0; }
+  .config-tab {
+    padding:9px 18px; font-size:var(--font-size-sm); font-weight:var(--font-weight-medium);
+    color:var(--gray-500); cursor:pointer; border:none; background:none;
+    border-bottom:2px solid transparent; margin-bottom:-1px; transition:all var(--motion-fast);
+  }
+  .config-tab:hover { color:var(--gray-800); }
+  .config-tab.active { color:var(--brand-secondary); border-bottom-color:var(--brand-secondary); font-weight:600; }
+  .config-section { display:none; }
+  .config-section.active { display:block; }
+  .color-preview {
+    display:flex; gap:8px; align-items:center;
+    background:var(--gray-50); border:1px solid var(--gray-200);
+    border-radius:var(--radius-md); padding:12px 14px;
+    margin-top:16px;
+  }
+  .color-swatch {
+    width:32px; height:32px; border-radius:var(--radius-sm);
+    border:1px solid rgba(0,0,0,.1); flex-shrink:0;
+  }
+  .theme-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+  .theme-card {
+    border:2px solid var(--gray-200); border-radius:var(--radius-md);
+    padding:12px; cursor:pointer; transition:all var(--motion-fast);
+    display:flex; align-items:center; gap:10px;
+  }
+  .theme-card:hover { border-color:var(--brand-accent); }
+  .theme-card.selected { border-color:var(--brand-secondary); background:var(--brand-accent-glow); }
+  .theme-dot { width:28px; height:28px; border-radius:50%; flex-shrink:0; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex align-items-center gap-3 mb-4">
-    <div class="p-2 rounded-3" style="background:#eef2ff;">
-        <i class="bi bi-gear-fill fs-4" style="color:#2e86de;"></i>
-    </div>
-    <div>
-        <h2 class="mb-0 fw-bold" style="font-size:1.4rem;color:#1e3a5f;">Configuración</h2>
-        <p style="color:#5a6a7a;margin:0;font-size:0.85rem;">Cuenta de correo saliente para el envío de documentos</p>
-    </div>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Configuración</h1>
+    <p class="page-subtitle">Gestiona la identidad visual y el servidor de correo</p>
+  </div>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show mb-4">
-            <i class="bi bi-{{ 'check-circle' if category=='success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    {% endfor %}
-{% endwith %}
+<!-- Tabs -->
+<div class="config-tabs">
+  <button class="config-tab active" onclick="showTab('marca')"><i class="bi bi-palette2 me-1"></i>Identidad de Marca</button>
+  <button class="config-tab" onclick="showTab('smtp')"><i class="bi bi-server me-1"></i>Correo (SMTP)</button>
+  <button class="config-tab" onclick="showTab('probar')"><i class="bi bi-send-check me-1"></i>Probar conexión</button>
+</div>
 
-<div class="row g-4">
-    <div class="col-lg-6">
-        <div class="card" style="border-left:4px solid #2e86de;">
-            <div class="card-header"><i class="bi bi-server me-2" style="color:#2e86de;"></i>Configuración SMTP</div>
-            <div class="card-body">
-                <form method="POST">
-                    <div class="row g-3 mb-3">
-                        <div class="col-sm-8">
-                            <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Servidor SMTP</label>
-                            <input type="text" class="form-control" name="smtp_server"
-                                   value="{{ cfg.smtp_server }}" placeholder="mail.empresa.com">
-                        </div>
-                        <div class="col-sm-4">
-                            <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Puerto</label>
-                            <input type="number" class="form-control" name="smtp_port"
-                                   value="{{ cfg.smtp_port }}">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Correo remitente</label>
-                        <input type="email" class="form-control" name="email_user"
-                               value="{{ cfg.email_user }}" placeholder="documentos@empresa.com">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Nombre visible del remitente</label>
-                        <input type="text" class="form-control" name="email_nombre"
-                               value="{{ cfg.email_nombre }}" placeholder="Empresa — Documentos">
-                        <div class="form-text">Los destinatarios ven este nombre en el campo "De:"</div>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Contraseña</label>
-                        <input type="password" class="form-control" name="email_pass"
-                               placeholder="Dejar vacío para no cambiar" autocomplete="new-password">
-                        <div class="form-text">
-                            {% if cfg.email_pass %}
-                                <span style="color:#27ae60;"><i class="bi bi-lock-fill me-1"></i>Contraseña configurada.</span>
-                            {% else %}
-                                <span style="color:#f39c12;"><i class="bi bi-exclamation-circle me-1"></i>Sin contraseña configurada.</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-floppy me-1"></i>Guardar configuración
-                    </button>
-                </form>
+<!-- ── TAB: MARCA ──────────────────────────────────── -->
+<div class="config-section active" id="tab-marca">
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card-modern">
+        <div class="card-header-modern"><span class="card-title">Identidad Visual</span></div>
+        <div style="padding:24px;">
+          <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="seccion" value="marca">
+
+            <div class="row g-3 mb-3">
+              <div class="col-sm-7">
+                <label class="form-label-modern">Nombre de la empresa</label>
+                <input type="text" name="brand_name" class="form-control" value="{{ cfg.brand_name }}">
+              </div>
+              <div class="col-sm-5">
+                <label class="form-label-modern">Subtítulo / Slogan</label>
+                <input type="text" name="brand_sub" class="form-control" value="{{ cfg.brand_sub }}" placeholder="Opcional">
+              </div>
             </div>
-        </div>
-    </div>
 
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-send-check me-2" style="color:#2e86de;"></i>Probar conexión</div>
-            <div class="card-body">
-                <p style="color:#5a6a7a;font-size:0.875rem;">Envía un correo de prueba para verificar que la configuración es correcta.</p>
-                <label class="form-label" style="font-size:0.82rem;color:#5a6a7a;font-weight:600;">Correo de destino</label>
-                <div class="input-group mb-3">
-                    <input type="email" class="form-control" id="correoProeba" placeholder="tu@correo.com">
-                    <button class="btn btn-outline-primary" id="btnProbar" type="button">
-                        <i class="bi bi-send"></i> Enviar prueba
-                    </button>
+            <div class="mb-3">
+              <label class="form-label-modern">Logotipo</label>
+              <div style="display:flex;gap:12px;align-items:center;">
+                {% if cfg.brand_logo_url %}
+                <div style="background:var(--brand-primary);padding:8px;border-radius:var(--radius-md);">
+                  <img src="{{ cfg.brand_logo_url }}" style="height:32px;" alt="Logo actual">
                 </div>
-                <div id="resultadoPrueba"></div>
-
-                <hr class="my-3">
-                <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#8a99a8;margin-bottom:8px;">Configuración activa</p>
-                <table class="table table-sm mb-0" style="font-size:0.82rem;">
-                    <tr><td style="color:#8a99a8;width:100px;">Servidor</td><td style="font-family:monospace;">{{ cfg.smtp_server or '—' }}</td></tr>
-                    <tr><td style="color:#8a99a8;">Puerto</td><td style="font-family:monospace;">{{ cfg.smtp_port or '—' }}</td></tr>
-                    <tr><td style="color:#8a99a8;">Usuario</td><td style="font-family:monospace;">{{ cfg.email_user or '—' }}</td></tr>
-                    <tr><td style="color:#8a99a8;">Remitente</td><td>{{ cfg.email_nombre or '—' }}</td></tr>
-                </table>
+                {% endif %}
+                <div>
+                  <input type="file" name="brand_logo" class="form-control" accept=".png,.jpg,.jpeg,.svg,.webp" style="font-size:var(--font-size-xs);">
+                  <div style="font-size:var(--font-size-xs);color:var(--gray-400);margin-top:4px;">PNG, SVG o JPG recomendado. Se mostrará sobre fondo oscuro.</div>
+                </div>
+              </div>
             </div>
+
+            <div class="mb-3">
+              <label class="form-label-modern">Tema visual</label>
+              <div class="theme-grid">
+                {% set temas_info = [
+                  ('default',    '#0f2744', 'Default',    'Azul marino corporativo'),
+                  ('esmeralda',  '#064e3b', 'Esmeralda',  'Verde — banca, seguros'),
+                  ('borgona',    '#4c0519', 'Borgoña',    'Rojo — legal, lujo'),
+                  ('pizarra',    '#0f172a', 'Pizarra',    'Oscuro — tech'),
+                  ('ambar',      '#451a03', 'Ámbar',      'Dorado — industria'),
+                ] %}
+                {% for tema_id, color, nombre, desc in temas_info %}
+                <label class="theme-card {{ 'selected' if cfg.brand_theme == tema_id else '' }}">
+                  <input type="radio" name="brand_theme" value="{{ tema_id }}"
+                         {{ 'checked' if cfg.brand_theme == tema_id else '' }}
+                         style="display:none;" onchange="this.closest('.theme-grid').querySelectorAll('.theme-card').forEach(c=>c.classList.remove('selected'));this.closest('.theme-card').classList.add('selected')">
+                  <div class="theme-dot" style="background:{{ color }};"></div>
+                  <div>
+                    <div style="font-size:var(--font-size-xs);font-weight:600;color:var(--gray-800);">{{ nombre }}</div>
+                    <div style="font-size:.65rem;color:var(--gray-400);">{{ desc }}</div>
+                  </div>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label-modern">Colores personalizados (sobrescriben el tema)</label>
+              <div class="row g-2">
+                <div class="col-sm-4">
+                  <label style="font-size:.7rem;color:var(--gray-500);">Primario (navbar)</label>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="color" name="brand_primary" value="{{ cfg.brand_primary }}" style="width:36px;height:36px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;padding:2px;">
+                    <input type="text" name="brand_primary_text" value="{{ cfg.brand_primary }}" class="form-control" style="font-family:var(--font-mono);font-size:.72rem;" oninput="this.previousElementSibling.value=this.value">
+                  </div>
+                </div>
+                <div class="col-sm-4">
+                  <label style="font-size:.7rem;color:var(--gray-500);">Secundario (botones)</label>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="color" name="brand_accent" value="{{ cfg.brand_accent }}" style="width:36px;height:36px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;padding:2px;">
+                    <input type="text" value="{{ cfg.brand_accent }}" class="form-control" style="font-family:var(--font-mono);font-size:.72rem;" oninput="this.previousElementSibling.value=this.value">
+                  </div>
+                </div>
+                <div class="col-sm-4">
+                  <label style="font-size:.7rem;color:var(--gray-500);">Acento (highlights)</label>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="color" name="brand_highlight" value="{{ cfg.brand_highlight }}" style="width:36px;height:36px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;padding:2px;">
+                    <input type="text" value="{{ cfg.brand_highlight }}" class="form-control" style="font-family:var(--font-mono);font-size:.72rem;" oninput="this.previousElementSibling.value=this.value">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-primary-modern">
+              <i class="bi bi-floppy"></i> Guardar identidad
+            </button>
+          </form>
         </div>
+      </div>
     </div>
+
+    <!-- Preview de marca -->
+    <div class="col-lg-5">
+      <div class="card-modern">
+        <div class="card-header-modern"><span class="card-title">Vista previa actual</span></div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:12px;">
+          <div style="background:var(--brand-primary);border-radius:var(--radius-md);padding:14px 18px;display:flex;align-items:center;gap:10px;">
+            {% if cfg.brand_logo_url %}
+            <img src="{{ cfg.brand_logo_url }}" style="height:24px;filter:brightness(0) invert(1);" alt="Logo">
+            {% else %}
+            <i class="bi bi-file-earmark-text-fill" style="color:#fff;font-size:1.1rem;"></i>
+            {% endif %}
+            <div>
+              <div style="color:#fff;font-weight:700;font-size:.85rem;">{{ cfg.brand_name }}</div>
+              {% if cfg.brand_sub %}
+              <div style="color:rgba(255,255,255,.5);font-size:.65rem;">{{ cfg.brand_sub }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div style="background:var(--brand-secondary);border-radius:var(--radius-md);padding:9px 16px;color:#fff;font-size:.8rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;width:fit-content;">
+            <i class="bi bi-plus-lg"></i> Botón principal
+          </div>
+          <div style="display:flex;gap:8px;">
+            <span class="badge-modern badge-blue">Activo</span>
+            <span class="badge-modern badge-green">Exitoso</span>
+            <span class="badge-modern badge-amber">Revisar</span>
+          </div>
+          <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-md);padding:10px 14px;font-size:.72rem;color:var(--gray-500);">
+            <strong style="color:var(--gray-800);">Tipografía DM Sans</strong> — Texto de ejemplo en el sistema
+          </div>
+          <div style="font-size:.7rem;color:var(--gray-400);border-top:1px solid var(--gray-100);padding-top:10px;">
+            Para ver los cambios aplicados globalmente, guarda y recarga la página.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TAB: SMTP ───────────────────────────────────── -->
+<div class="config-section" id="tab-smtp">
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card-modern">
+        <div class="card-header-modern"><span class="card-title">Servidor de correo saliente</span></div>
+        <div style="padding:24px;">
+          <form method="POST">
+            <input type="hidden" name="seccion" value="smtp">
+            <div class="row g-3 mb-3">
+              <div class="col-sm-8">
+                <label class="form-label-modern">Servidor SMTP</label>
+                <input type="text" name="smtp_server" class="form-control" value="{{ cfg.smtp_server }}" placeholder="mail.empresa.com">
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label-modern">Puerto</label>
+                <input type="number" name="smtp_port" class="form-control" value="{{ cfg.smtp_port }}">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label-modern">Correo remitente</label>
+              <input type="email" name="email_user" class="form-control" value="{{ cfg.email_user }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label-modern">Nombre visible</label>
+              <input type="text" name="email_nombre" class="form-control" value="{{ cfg.email_nombre }}">
+              <div style="font-size:var(--font-size-xs);color:var(--gray-400);margin-top:4px;">Los destinatarios verán este nombre en el campo "De:"</div>
+            </div>
+            <div class="mb-4">
+              <label class="form-label-modern">Contraseña</label>
+              <input type="password" name="email_pass" class="form-control" placeholder="Dejar vacío para no cambiar" autocomplete="new-password">
+              <div style="font-size:var(--font-size-xs);margin-top:4px;">
+                {% if cfg.email_pass %}
+                  <span style="color:var(--color-success);"><i class="bi bi-lock-fill me-1"></i>Contraseña configurada</span>
+                {% else %}
+                  <span style="color:var(--color-warning);"><i class="bi bi-exclamation-circle me-1"></i>Sin contraseña</span>
+                {% endif %}
+              </div>
+            </div>
+            <button type="submit" class="btn-primary-modern"><i class="bi bi-floppy"></i> Guardar SMTP</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card-modern">
+        <div class="card-header-modern"><span class="card-title">Configuración activa</span></div>
+        <div style="padding:20px;">
+          <table style="width:100%;font-size:var(--font-size-xs);">
+            {% for label, val in [('Servidor', cfg.smtp_server or '—'), ('Puerto', cfg.smtp_port or '—'), ('Usuario', cfg.email_user or '—'), ('Remitente', cfg.email_nombre or '—')] %}
+            <tr style="border-bottom:1px solid var(--gray-100);">
+              <td style="padding:8px 0;color:var(--gray-400);width:90px;">{{ label }}</td>
+              <td style="padding:8px 0;font-family:var(--font-mono);color:var(--gray-700);">{{ val }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TAB: PROBAR ─────────────────────────────────── -->
+<div class="config-section" id="tab-probar">
+  <div class="row justify-content-center">
+  <div class="col-lg-5">
+  <div class="card-modern">
+    <div class="card-header-modern"><span class="card-title">Probar conexión SMTP</span></div>
+    <div style="padding:24px;">
+      <p style="font-size:var(--font-size-sm);color:var(--gray-500);margin-bottom:16px;">
+        Envía un correo de prueba para verificar que la configuración es correcta.
+      </p>
+      <label class="form-label-modern">Correo de destino</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input type="email" class="form-control" id="correoProeba" placeholder="tu@correo.com" style="flex:1;">
+        <button class="btn-primary-modern" id="btnProbar" type="button" style="white-space:nowrap;">
+          <i class="bi bi-send"></i> Enviar prueba
+        </button>
+      </div>
+      <div id="resultadoPrueba"></div>
+    </div>
+  </div>
+  </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+function showTab(id) {
+  document.querySelectorAll('.config-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
 document.getElementById('btnProbar').addEventListener('click', async function() {
-    const correo = document.getElementById('correoProeba').value.trim();
-    const result = document.getElementById('resultadoPrueba');
-    if (!correo) { result.innerHTML = '<div class="alert alert-warning py-2 small">Ingresa un correo.</div>'; return; }
-    this.disabled = true;
-    this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
-    try {
-        const r = await fetch('/configuracion/probar', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({correo})
-        });
-        const d = await r.json();
-        result.innerHTML = `<div class="alert alert-${d.success?'success':'danger'} py-2 small">
-            <i class="bi bi-${d.success?'check-circle':'x-circle'} me-1"></i>${d.message}</div>`;
-    } catch(e) {
-        result.innerHTML = '<div class="alert alert-danger py-2 small">Error de conexión.</div>';
-    } finally {
-        this.disabled = false;
-        this.innerHTML = '<i class="bi bi-send"></i> Enviar prueba';
-    }
+  const correo = document.getElementById('correoProeba').value.trim();
+  const result = document.getElementById('resultadoPrueba');
+  if (!correo) { result.innerHTML = '<div style="color:var(--color-danger);font-size:.8rem;">Ingresa un correo.</div>'; return; }
+  this.disabled = true; this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  try {
+    const r = await fetch('/configuracion/probar', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({correo}) });
+    const d = await r.json();
+    result.innerHTML = `<div style="font-size:var(--font-size-xs);padding:10px;border-radius:var(--radius-md);background:${d.success?'var(--color-success-bg)':'var(--color-danger-bg)'};color:${d.success?'var(--color-success)':'var(--color-danger)'};">
+      <i class="bi bi-${d.success?'check-circle':'x-circle'}-fill me-1"></i>${d.message}</div>`;
+  } catch(e) { result.innerHTML = '<div style="color:var(--color-danger);font-size:.8rem;">Error de conexión.</div>'; }
+  finally { this.disabled=false; this.innerHTML='<i class="bi bi-send"></i> Enviar prueba'; }
 });
 </script>
 {% endblock %}

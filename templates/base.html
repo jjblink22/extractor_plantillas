@@ -5,9 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block page_title %}Extractor de Plantillas{% endblock %}{% block title %}{% endblock %}</title>
 
-  <!-- Design System -->
+  <!-- Design System base -->
   <link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+  <!-- Tema de empresa (intercambiable sin tocar código) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='themes/' + (brand_theme or 'default') + '.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='components.css') }}">
+
+  <!-- Colores de marca desde BD (sobrescriben el tema si están definidos) -->
+  {% if brand_primary or brand_accent or brand_highlight %}
+  <style>
+    :root {
+      {% if brand_primary %}--brand-primary:    {{ brand_primary }};{% endif %}
+      {% if brand_accent  %}--brand-secondary:  {{ brand_accent }};{% endif %}
+      {% if brand_highlight %}--brand-accent:   {{ brand_highlight }};
+        --brand-accent-glow: {{ brand_highlight }}2e;{% endif %}
+    }
+  </style>
+  {% endif %}
 
   <!-- Bootstrap 5 (grid + modals + utilities) -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -46,16 +60,16 @@
 ">
   <!-- Logo + Nombre -->
   <a href="{{ url_for('index') }}" class="navbar-brand-wrapper" style="flex-shrink:0; margin-right:32px;">
-    {% if brand_logo is defined and brand_logo %}
-      <img src="{{ brand_logo }}" alt="Logo" class="navbar-brand-logo">
+    {% if brand_logo_url %}
+      <img src="{{ brand_logo_url }}" alt="Logo" class="navbar-brand-logo" style="height:32px;">
     {% else %}
-      <div style="width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;flex-shrink:0;">
         <i class="bi bi-file-earmark-text-fill"></i>
       </div>
     {% endif %}
     <div>
-      <span class="navbar-brand-name">{{ brand_name if brand_name is defined else 'Extractor de Plantillas' }}</span>
-      {% if brand_sub is defined and brand_sub %}
+      <span class="navbar-brand-name">{{ brand_name }}</span>
+      {% if brand_sub %}
         <span class="navbar-brand-sub">{{ brand_sub }}</span>
       {% endif %}
     </div>

@@ -1,0 +1,9 @@
+/* TEMA: Ámbar — Dorado energético (ej: petróleo, construcción) */
+:root {
+  --brand-primary:    #451a03;
+  --brand-secondary:  #b45309;
+  --brand-accent:     #f59e0b;
+  --brand-accent-glow:rgba(245,158,11,.18);
+  --bg-app:           #fffbeb;
+  --bg-sidebar:       var(--brand-primary);
+}

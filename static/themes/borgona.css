@@ -1,0 +1,9 @@
+/* TEMA: Borgoña — Rojo oscuro elegante (ej: firmas legales, lujo) */
+:root {
+  --brand-primary:    #4c0519;
+  --brand-secondary:  #9f1239;
+  --brand-accent:     #f43f5e;
+  --brand-accent-glow:rgba(244,63,94,.18);
+  --bg-app:           #fff1f2;
+  --bg-sidebar:       var(--brand-primary);
+}
