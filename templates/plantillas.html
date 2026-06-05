@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Plantillas</h1>
-    <p class="page-subtitle">Gestiona las plantillas de extracción de datos</p>
+    <p class="page-subtitle">{{ plantillas|length }} plantilla(s) configurada(s)</p>
   </div>
   <a href="{{ url_for('nueva_plantilla') }}" class="btn-primary-modern">
     <i class="bi bi-plus-lg"></i> Nueva plantilla
@@ -16,26 +16,27 @@
 <div class="card-modern">
   <table class="table-modern">
     <thead>
-      <tr>
-        <th>Nombre</th><th>Descripción</th><th>Tipo</th><th>Usos</th><th>Creada</th><th></th>
-      </tr>
+      <tr><th>Nombre</th><th>Descripción</th><th>Tipo</th><th>Usos</th><th>Creada</th><th style="text-align:right;">Acciones</th></tr>
     </thead>
     <tbody>
       {% for p in plantillas %}
       <tr>
         <td class="td-main">{{ p.nombre }}</td>
-        <td style="color:var(--gray-400);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          {{ p.descripcion or '—' }}
-        </td>
+        <td style="color:var(--gray-400);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.descripcion or '—' }}</td>
         <td><span class="badge-modern badge-blue">{{ p.tipo_documento }}</span></td>
         <td style="color:var(--gray-500);">{{ p.total_usos }}</td>
-        <td style="color:var(--gray-400);font-size:var(--font-size-xs);">
-          {{ p.creado.strftime('%d/%m/%Y') if p.creado else '—' }}
-        </td>
+        <td style="color:var(--gray-400);font-size:var(--font-size-xs);">{{ p.creado.strftime('%d/%m/%Y') if p.creado else '—' }}</td>
         <td style="text-align:right;">
-          <a href="{{ url_for('editor_plantilla', plantilla_id=p.id) }}" class="btn-primary-modern" style="font-size:.72rem;padding:6px 12px;">
-            <i class="bi bi-pencil"></i> Editor visual
-          </a>
+          <div style="display:flex;gap:6px;justify-content:flex-end;">
+            <a href="{{ url_for('editor_plantilla', plantilla_id=p.id) }}" class="btn-primary-modern" style="font-size:.72rem;padding:6px 12px;">
+              <i class="bi bi-pencil"></i> Editor
+            </a>
+            <form method="POST" action="{{ url_for('duplicar_plantilla', plantilla_id=p.id) }}">
+              <button type="submit" class="btn-ghost" style="font-size:.72rem;padding:6px 10px;" title="Duplicar plantilla">
+                <i class="bi bi-copy"></i>
+              </button>
+            </form>
+          </div>
         </td>
       </tr>
       {% endfor %}

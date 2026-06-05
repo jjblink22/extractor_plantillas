@@ -1,21 +1,57 @@
 {% extends "base.html" %}
 {% block title %} — Historial{% endblock %}
-{% block content %}
 
+{% block content %}
 <div class="page-header">
   <div>
     <h1 class="page-title">Historial de extracciones</h1>
-    <p class="page-subtitle">Últimas 200 extracciones realizadas</p>
+    <p class="page-subtitle">{{ extracciones|length }} registro(s)</p>
   </div>
+  <a href="{{ url_for('exportar_historial', plantilla_id=filtros.plantilla_id, estado=filtros.estado) }}"
+     class="btn-primary-modern" style="background:var(--color-success);">
+    <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+  </a>
 </div>
+
+<!-- Filtros -->
+<form method="GET" class="card-modern mb-4" style="padding:16px;">
+  <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+    <div style="flex:2;min-width:180px;">
+      <label class="form-label-modern" style="margin-bottom:4px;">Buscar archivo</label>
+      <input type="text" name="q" class="form-control" value="{{ filtros.q }}" placeholder="Nombre del archivo...">
+    </div>
+    <div style="flex:1;min-width:160px;">
+      <label class="form-label-modern" style="margin-bottom:4px;">Plantilla</label>
+      <select name="plantilla_id" class="form-select">
+        <option value="">Todas</option>
+        {% for p in plantillas %}
+        <option value="{{ p.id }}" {{ 'selected' if filtros.plantilla_id|string == p.id|string }}>{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1;min-width:130px;">
+      <label class="form-label-modern" style="margin-bottom:4px;">Estado</label>
+      <select name="estado" class="form-select">
+        <option value="">Todos</option>
+        <option value="exitoso" {{ 'selected' if filtros.estado=='exitoso' }}>Exitoso</option>
+        <option value="revisar" {{ 'selected' if filtros.estado=='revisar' }}>Revisar</option>
+        <option value="error"   {{ 'selected' if filtros.estado=='error'   }}>Error</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button type="submit" class="btn-primary-modern" style="padding:9px 16px;">
+        <i class="bi bi-search"></i> Filtrar
+      </button>
+      <a href="{{ url_for('historial') }}" class="btn-ghost" style="padding:9px 14px;">Limpiar</a>
+    </div>
+  </div>
+</form>
 
 {% if extracciones %}
 <div class="card-modern">
   <table class="table-modern">
     <thead>
-      <tr>
-        <th>Fecha</th><th>Archivo</th><th>Plantilla</th><th>Usuario</th><th>Estado</th><th></th>
-      </tr>
+      <tr><th>Fecha</th><th>Archivo</th><th>Plantilla</th><th>Usuario</th><th>Estado</th><th></th></tr>
     </thead>
     <tbody>
     {% for e in extracciones %}
@@ -49,9 +85,9 @@
     {% if e.datos %}
     <tr class="collapse" id="datos{{ e.id }}">
       <td colspan="6" style="background:var(--gray-50);padding:12px 20px;">
-        <div style="font-family:var(--font-mono);font-size:.75rem;display:flex;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
           {% for k,v in e.datos.items() %}
-          <div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:5px 10px;">
+          <div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:5px 10px;font-size:.72rem;">
             <span style="color:var(--gray-400);">{{ k }}:</span>
             <span style="color:var(--gray-900);font-weight:500;margin-left:4px;">{{ v or '—' }}</span>
           </div>
@@ -68,8 +104,8 @@
 <div class="card-modern">
   <div class="empty-state">
     <div class="empty-state-icon"><i class="bi bi-clock-history"></i></div>
-    <div class="empty-state-title">Sin extracciones aún</div>
-    <div class="empty-state-desc">Las extracciones que realices aparecerán aquí con sus datos y estado.</div>
+    <div class="empty-state-title">Sin resultados</div>
+    <div class="empty-state-desc">No hay extracciones que coincidan con los filtros aplicados.</div>
     <a href="{{ url_for('extraer') }}" class="btn-primary-modern"><i class="bi bi-cloud-arrow-up"></i> Extraer ahora</a>
   </div>
 </div>

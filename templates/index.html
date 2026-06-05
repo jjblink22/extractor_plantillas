@@ -1,12 +1,11 @@
 {% extends "base.html" %}
-{% block title %} — Inicio{% endblock %}
+{% block title %} — Dashboard{% endblock %}
 
 {% block content %}
-<!-- Page header -->
 <div class="page-header">
   <div>
-    <h1 class="page-title">Extractor de Plantillas PDF</h1>
-    <p class="page-subtitle">Define zonas de extracción una vez, reutilízalas en cualquier PDF del mismo formato</p>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Bienvenido, {{ session.get('nombre','') }}</p>
   </div>
   <a href="{{ url_for('nueva_plantilla') }}" class="btn-primary-modern">
     <i class="bi bi-plus-lg"></i> Nueva plantilla
@@ -14,121 +13,146 @@
 </div>
 
 <!-- Stats -->
-<div class="row g-3 mb-5 stagger">
-  <div class="col-sm-6 col-lg-3">
+<div class="row g-3 mb-4 stagger">
+  <div class="col-6 col-lg-3">
     <div class="stat-card">
       <div class="stat-icon blue"><i class="bi bi-layout-text-sidebar"></i></div>
       <div>
         <div class="stat-value">{{ plantillas|length }}</div>
-        <div class="stat-label">Plantillas activas</div>
+        <div class="stat-label">Plantillas</div>
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg-3">
     <div class="stat-card">
       <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
       <div>
-        <div class="stat-value">{{ total_extracciones }}</div>
-        <div class="stat-label">Extracciones realizadas</div>
+        <div class="stat-value">{{ stats.get('exitosos', 0) or 0 }}</div>
+        <div class="stat-label">Exitosas</div>
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
-    <div class="stat-card" style="cursor:pointer;" onclick="window.location='{{ url_for('extraer') }}'">
-      <div class="stat-icon amber"><i class="bi bi-cloud-arrow-up"></i></div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-icon amber"><i class="bi bi-clock"></i></div>
       <div>
-        <div class="stat-value" style="font-size:1rem;padding-top:4px;">Extraer</div>
-        <div class="stat-label">Subir nuevos PDFs</div>
+        <div class="stat-value">{{ stats.get('esta_semana', 0) or 0 }}</div>
+        <div class="stat-label">Esta semana</div>
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
-    <div class="stat-card" style="cursor:pointer;" onclick="window.location='{{ url_for('historial') }}'">
-      <div class="stat-icon purple"><i class="bi bi-clock-history"></i></div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card">
+      <div class="stat-icon purple"><i class="bi bi-bar-chart"></i></div>
       <div>
-        <div class="stat-value" style="font-size:1rem;padding-top:4px;">Historial</div>
-        <div class="stat-label">Ver extracciones previas</div>
+        <div class="stat-value">{{ stats.get('total', 0) or 0 }}</div>
+        <div class="stat-label">Total extracciones</div>
       </div>
     </div>
   </div>
 </div>
 
 <div class="row g-4">
-  <!-- Plantillas -->
-  <div class="col-lg-8">
+  <!-- Acciones rápidas -->
+  <div class="col-lg-4">
+    <div class="card-modern mb-4">
+      <div class="card-header-modern"><span class="card-title">Acciones rápidas</span></div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:8px;">
+        <a href="{{ url_for('extraer') }}" class="btn-primary-modern" style="justify-content:flex-start;">
+          <i class="bi bi-cloud-arrow-up"></i> Extraer PDFs
+        </a>
+        <a href="{{ url_for('nueva_plantilla') }}" class="btn-ghost" style="justify-content:flex-start;">
+          <i class="bi bi-plus-lg"></i> Nueva plantilla
+        </a>
+        <a href="{{ url_for('historial') }}" class="btn-ghost" style="justify-content:flex-start;">
+          <i class="bi bi-clock-history"></i> Ver historial
+        </a>
+        <a href="{{ url_for('exportar_historial') }}" class="btn-ghost" style="justify-content:flex-start;color:var(--color-success);border-color:#bbf7d0;">
+          <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
+        </a>
+      </div>
+    </div>
+
+    <!-- Indicador de salud -->
+    {% set total = stats.get('total', 0) or 1 %}
+    {% set tasa = ((stats.get('exitosos', 0) or 0) / total * 100)|int %}
     <div class="card-modern">
-      <div class="card-header-modern">
-        <span class="card-title">Plantillas disponibles</span>
-        <a href="{{ url_for('nueva_plantilla') }}" class="btn-ghost" style="font-size:.75rem;padding:5px 11px;">
-          <i class="bi bi-plus-lg"></i> Nueva
-        </a>
+      <div class="card-header-modern"><span class="card-title">Tasa de éxito</span></div>
+      <div style="padding:20px;text-align:center;">
+        <div style="font-size:2.5rem;font-weight:700;color:{{ 'var(--color-success)' if tasa >= 80 else 'var(--color-warning)' if tasa >= 50 else 'var(--color-danger)' }};">
+          {{ tasa }}%
+        </div>
+        <div style="height:8px;background:var(--gray-100);border-radius:99px;margin:12px 0;overflow:hidden;">
+          <div style="height:100%;width:{{ tasa }}%;background:{{ 'var(--color-success)' if tasa >= 80 else 'var(--color-warning)' if tasa >= 50 else 'var(--color-danger)' }};border-radius:99px;transition:width 1s var(--ease-out);"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--gray-400);">
+          <span>✓ {{ stats.get('exitosos',0) or 0 }} exitosas</span>
+          <span>⚠ {{ stats.get('revisar',0) or 0 }} revisar</span>
+          <span>✗ {{ stats.get('errores',0) or 0 }} errores</span>
+        </div>
       </div>
-      {% if plantillas %}
-      <table class="table-modern">
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Tipo</th>
-            <th>Usos</th>
-            <th>Creada</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in plantillas %}
-          <tr>
-            <td class="td-main">{{ p.nombre }}</td>
-            <td><span class="badge-modern badge-blue">{{ p.tipo_documento }}</span></td>
-            <td style="color:var(--gray-400);">{{ p.total_usos }}</td>
-            <td style="color:var(--gray-400);font-size:var(--font-size-xs);">
-              {{ p.creado.strftime('%d/%m/%Y') if p.creado else '—' }}
-            </td>
-            <td>
-              <a href="{{ url_for('editor_plantilla', plantilla_id=p.id) }}" class="btn-ghost" style="font-size:.72rem;padding:4px 10px;">
-                <i class="bi bi-pencil"></i> Editar
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <div class="empty-state">
-        <div class="empty-state-icon"><i class="bi bi-layout-text-sidebar"></i></div>
-        <div class="empty-state-title">Sin plantillas aún</div>
-        <div class="empty-state-desc">Crea tu primera plantilla para empezar a extraer datos de PDFs automáticamente.</div>
-        <a href="{{ url_for('nueva_plantilla') }}" class="btn-primary-modern">
-          <i class="bi bi-plus-lg"></i> Crear plantilla
-        </a>
-      </div>
-      {% endif %}
     </div>
   </div>
 
-  <!-- Guía rápida -->
-  <div class="col-lg-4">
+  <!-- Plantillas y actividad reciente -->
+  <div class="col-lg-8">
+    <div class="card-modern mb-4">
+      <div class="card-header-modern">
+        <span class="card-title">Plantillas disponibles</span>
+        <a href="{{ url_for('lista_plantillas') }}" class="btn-ghost" style="font-size:.72rem;padding:4px 10px;">Ver todas</a>
+      </div>
+      {% if plantillas %}
+      <table class="table-modern">
+        <thead><tr><th>Nombre</th><th>Tipo</th><th></th></tr></thead>
+        <tbody>
+        {% for p in plantillas[:6] %}
+        <tr>
+          <td class="td-main">{{ p.nombre }}</td>
+          <td><span class="badge-modern badge-blue">{{ p.tipo_documento }}</span></td>
+          <td style="text-align:right;">
+            <a href="{{ url_for('extraer') }}?plantilla_id={{ p.id }}" class="btn-ghost" style="font-size:.72rem;padding:4px 10px;">
+              <i class="bi bi-play-circle"></i> Extraer
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state" style="padding:32px;">
+        <div class="empty-state-icon"><i class="bi bi-layout-text-sidebar"></i></div>
+        <div class="empty-state-title">Sin plantillas</div>
+        <a href="{{ url_for('nueva_plantilla') }}" class="btn-primary-modern"><i class="bi bi-plus-lg"></i> Crear primera plantilla</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Actividad reciente -->
+    {% if ultimas %}
     <div class="card-modern">
       <div class="card-header-modern">
-        <span class="card-title">Cómo funciona</span>
+        <span class="card-title">Actividad reciente</span>
+        <a href="{{ url_for('historial') }}" class="btn-ghost" style="font-size:.72rem;padding:4px 10px;">Ver todo</a>
       </div>
-      <div style="padding:20px;">
-        {% for paso, titulo, desc in [
-          ('1', 'Crea una plantilla', 'Ponle nombre y describe qué tipo de documento extrae'),
-          ('2', 'Sube un PDF de muestra', 'El sistema lo muestra en pantalla con el layout real'),
-          ('3', 'Arrastra las zonas', 'Selecciona visualmente cada campo que quieres capturar'),
-          ('4', 'Extrae en masa', 'Sube cualquier PDF del mismo formato y obtén los datos'),
-        ] %}
-        <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:{{ '0' if loop.last else '20px' }};">
-          <div style="width:28px;height:28px;border-radius:50%;background:var(--brand-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">{{ paso }}</div>
-          <div>
-            <div style="font-size:var(--font-size-sm);font-weight:var(--font-weight-semibold);color:var(--gray-800);margin-bottom:2px;">{{ titulo }}</div>
-            <div style="font-size:var(--font-size-xs);color:var(--gray-400);">{{ desc }}</div>
-          </div>
-        </div>
-        {% if not loop.last %}{% endif %}
+      <table class="table-modern">
+        <thead><tr><th>Archivo</th><th>Plantilla</th><th>Fecha</th><th>Estado</th></tr></thead>
+        <tbody>
+        {% for u in ultimas %}
+        <tr>
+          <td style="font-size:var(--font-size-xs);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ u.archivo_nombre or '—' }}</td>
+          <td style="font-size:var(--font-size-xs);color:var(--gray-500);">{{ u.plantilla_nombre or '—' }}</td>
+          <td style="font-size:var(--font-size-xs);color:var(--gray-400);white-space:nowrap;">{{ u.fecha.strftime('%d/%m %H:%M') if u.fecha else '—' }}</td>
+          <td>
+            {% if u.estado == 'exitoso' %}<span class="badge-modern badge-green" style="font-size:.65rem;">✓</span>
+            {% elif u.estado == 'revisar' %}<span class="badge-modern badge-amber" style="font-size:.65rem;">⚠</span>
+            {% else %}<span class="badge-modern badge-red" style="font-size:.65rem;">✗</span>{% endif %}
+          </td>
+        </tr>
         {% endfor %}
-      </div>
+        </tbody>
+      </table>
     </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

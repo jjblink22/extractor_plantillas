@@ -1,96 +1,187 @@
 {% extends "base.html" %}
 {% block title %} — Extraer PDFs{% endblock %}
-{% block content %}
 
+{% block content %}
 <div class="page-header">
   <div>
     <h1 class="page-title">Extraer datos de PDFs</h1>
-    <p class="page-subtitle">Selecciona una plantilla y sube los documentos a procesar</p>
+    <p class="page-subtitle">Sube uno o varios PDFs y aplica una plantilla para obtener los datos estructurados</p>
   </div>
 </div>
 
-<div class="row justify-content-center">
-<div class="col-lg-7">
-<div class="card-modern">
-  <div class="card-header-modern"><span class="card-title">Configurar extracción</span></div>
-  <div style="padding:24px;">
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card-modern">
+      <div class="card-header-modern"><span class="card-title">Configurar extracción</span></div>
+      <div style="padding:24px;">
+      {% if not plantillas %}
+        <div class="empty-state" style="padding:32px 0;">
+          <div class="empty-state-icon"><i class="bi bi-layout-text-sidebar"></i></div>
+          <div class="empty-state-title">Sin plantillas disponibles</div>
+          <div class="empty-state-desc">Necesitas crear al menos una plantilla antes de extraer datos.</div>
+          <a href="{{ url_for('nueva_plantilla') }}" class="btn-primary-modern"><i class="bi bi-plus-lg"></i> Crear plantilla</a>
+        </div>
+      {% else %}
+        <form method="POST" enctype="multipart/form-data" id="formExtraer">
 
-  {% if not plantillas %}
-    <div class="empty-state" style="padding:32px 0;">
-      <div class="empty-state-icon"><i class="bi bi-layout-text-sidebar"></i></div>
-      <div class="empty-state-title">Sin plantillas disponibles</div>
-      <div class="empty-state-desc">Necesitas crear al menos una plantilla antes de extraer datos.</div>
-      <a href="{{ url_for('nueva_plantilla') }}" class="btn-primary-modern"><i class="bi bi-plus-lg"></i> Crear plantilla</a>
-    </div>
-  {% else %}
-    <form method="POST" enctype="multipart/form-data" id="formExtraer">
-      <div class="form-group-modern">
-        <label class="form-label-modern">Plantilla a aplicar</label>
-        <select name="plantilla_id" class="form-select" required>
-          <option value="">— Selecciona una plantilla —</option>
-          {% for p in plantillas %}
-          <option value="{{ p.id }}">{{ p.nombre }} ({{ p.tipo_documento }})</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="form-group-modern">
-        <label class="form-label-modern">Archivos PDF</label>
-        <label for="inputPdfs" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--gray-200);border-radius:var(--radius-lg);padding:32px;text-align:center;cursor:pointer;background:var(--gray-50);transition:all var(--motion-normal);" id="dropZone">
-          <i class="bi bi-file-earmark-pdf-fill" style="font-size:2rem;color:#dc2626;"></i>
-          <div style="font-size:var(--font-size-sm);font-weight:var(--font-weight-medium);color:var(--gray-700);">
-            Arrastra los PDFs aquí o haz clic para seleccionar
+          <!-- Auto-detección -->
+          <div style="background:var(--color-info-bg);border:1px solid #bae6fd;border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;font-size:var(--font-size-xs);color:var(--color-info);display:flex;justify-content:space-between;align-items:center;">
+            <span><i class="bi bi-magic me-1"></i> Auto-detectar plantilla desde el PDF</span>
+            <button type="button" class="btn-ghost" id="btnAutoDetectar" style="font-size:.72rem;padding:4px 12px;display:none;">
+              <span class="spinner-border spinner-border-sm me-1" style="display:none;" id="spinnerAuto"></span>
+              Detectar
+            </button>
           </div>
-          <div style="font-size:var(--font-size-xs);color:var(--gray-400);">Múltiples archivos permitidos</div>
-          <div id="fileInfo" style="font-size:var(--font-size-sm);font-weight:var(--font-weight-semibold);color:var(--brand-secondary);display:none;"></div>
-          <input type="file" id="inputPdfs" name="pdfs" accept=".pdf" multiple style="display:none;"
-                 onchange="updateFileInfo(this)">
-        </label>
+
+          <div class="form-group-modern">
+            <label class="form-label-modern">Plantilla a aplicar</label>
+            <select name="plantilla_id" class="form-select" id="selectPlantilla" required>
+              <option value="">— Selecciona una plantilla —</option>
+              {% for p in plantillas %}
+              <option value="{{ p.id }}" {% if request.args.get('plantilla_id')|string == p.id|string %}selected{% endif %}>
+                {{ p.nombre }} ({{ p.tipo_documento }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group-modern">
+            <label class="form-label-modern">Archivos PDF</label>
+            <label id="dropZone" for="inputPdfs" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--gray-200);border-radius:var(--radius-lg);padding:32px;text-align:center;cursor:pointer;background:var(--gray-50);transition:all var(--motion-normal);">
+              <i class="bi bi-file-earmark-pdf-fill" style="font-size:2rem;color:#dc2626;"></i>
+              <div style="font-size:var(--font-size-sm);font-weight:500;color:var(--gray-700);">
+                Arrastra los PDFs aquí o haz clic para seleccionar
+              </div>
+              <div style="font-size:var(--font-size-xs);color:var(--gray-400);">Múltiples archivos permitidos</div>
+              <div id="fileInfo" style="font-size:var(--font-size-sm);font-weight:600;color:var(--brand-secondary);display:none;"></div>
+            </label>
+            <input type="file" id="inputPdfs" name="pdfs" accept=".pdf" multiple style="display:none;">
+          </div>
+
+          <button type="submit" class="btn-primary-modern w-100" style="justify-content:center;padding:11px;" id="btnExtraer" disabled>
+            <i class="bi bi-play-circle-fill"></i> Extraer datos
+          </button>
+        </form>
+      {% endif %}
       </div>
-
-      <button type="submit" class="btn-primary-modern w-100" style="justify-content:center;padding:11px;" id="btnExtraer">
-        <i class="bi bi-play-circle-fill"></i> Extraer datos
-      </button>
-    </form>
-  {% endif %}
-
+    </div>
   </div>
-</div>
-</div>
+
+  <!-- Panel derecho: guía y plantillas rápidas -->
+  <div class="col-lg-5">
+    <div class="card-modern mb-3">
+      <div class="card-header-modern"><span class="card-title">Plantillas disponibles</span></div>
+      <div style="padding:12px;display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">
+        {% for p in plantillas %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--gray-100);cursor:pointer;transition:background var(--motion-fast);"
+             onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''"
+             onclick="document.getElementById('selectPlantilla').value='{{ p.id }}';document.getElementById('selectPlantilla').dispatchEvent(new Event('change'))">
+          <div>
+            <div style="font-size:var(--font-size-xs);font-weight:600;color:var(--gray-800);">{{ p.nombre }}</div>
+            <div style="font-size:.65rem;color:var(--gray-400);">{{ p.tipo_documento }}</div>
+          </div>
+          <span class="badge-modern badge-blue" style="font-size:.65rem;">Seleccionar</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card-modern">
+      <div class="card-header-modern"><span class="card-title">Orden de columnas en Excel</span></div>
+      <div style="padding:16px;font-size:var(--font-size-xs);color:var(--gray-500);">
+        <p style="margin-bottom:10px;">Los datos se exportarán en el <strong>orden en que definiste los campos</strong> en el editor visual de la plantilla.</p>
+        <div id="camposOrden" style="display:none;">
+          <div style="font-weight:600;color:var(--gray-700);margin-bottom:6px;">Campos de la plantilla seleccionada:</div>
+          <div id="listaCampos" style="display:flex;flex-direction:column;gap:4px;"></div>
+        </div>
+        <div id="sinPlantilla" style="color:var(--gray-300);">Selecciona una plantilla para ver el orden de campos.</div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function updateFileInfo(input) {
-  const info = document.getElementById('fileInfo');
-  const zone = document.getElementById('dropZone');
-  if (input.files.length > 0) {
-    const n = input.files.length;
-    info.textContent = n === 1 ? input.files[0].name : `${n} archivos seleccionados`;
-    info.style.display = 'block';
-    zone.style.borderColor = 'var(--brand-accent)';
-    zone.style.background = 'var(--brand-accent-glow)';
+const inputPdfs = document.getElementById('inputPdfs');
+const dropZone  = document.getElementById('dropZone');
+const fileInfo  = document.getElementById('fileInfo');
+const btnExtraer= document.getElementById('btnExtraer');
+
+function updateFileInfo(files) {
+  if (files && files.length > 0) {
+    const n = files.length;
+    fileInfo.textContent = n === 1 ? files[0].name : `${n} archivos seleccionados`;
+    fileInfo.style.display = 'block';
+    dropZone.style.borderColor = 'var(--brand-accent)';
+    dropZone.style.background  = 'var(--brand-accent-glow)';
+    btnExtraer.disabled = false;
+    btnExtraer.innerHTML = `<i class="bi bi-play-circle-fill"></i> Extraer ${n} archivo(s)`;
+    // Mostrar botón auto-detectar si hay 1 archivo
+    if (n === 1) document.getElementById('btnAutoDetectar').style.display = 'block';
   }
 }
 
+inputPdfs.addEventListener('change', () => updateFileInfo(inputPdfs.files));
+
 // Drag and drop
-const zone = document.getElementById('dropZone');
-if (zone) {
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--brand-accent)'; });
-  zone.addEventListener('dragleave', () => zone.style.borderColor = 'var(--gray-200)');
-  zone.addEventListener('drop', e => {
-    e.preventDefault();
-    const input = document.getElementById('inputPdfs');
-    input.files = e.dataTransfer.files;
-    updateFileInfo(input);
-  });
-}
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor='var(--brand-accent)'; });
+dropZone.addEventListener('dragleave', () => dropZone.style.borderColor='var(--gray-200)');
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  // Transfer files to input
+  const dt = new DataTransfer();
+  Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.pdf')).forEach(f => dt.items.add(f));
+  inputPdfs.files = dt.files;
+  updateFileInfo(inputPdfs.files);
+});
+
+// Mostrar campos de la plantilla seleccionada
+document.getElementById('selectPlantilla').addEventListener('change', async function() {
+  const id = this.value;
+  if (!id) { document.getElementById('camposOrden').style.display='none'; document.getElementById('sinPlantilla').style.display='block'; return; }
+  try {
+    const r = await fetch(`/api/campos_plantilla/${id}`);
+    const d = await r.json();
+    if (d.campos) {
+      document.getElementById('sinPlantilla').style.display = 'none';
+      document.getElementById('camposOrden').style.display = 'block';
+      document.getElementById('listaCampos').innerHTML = d.campos.map((c,i) =>
+        `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--gray-50);border-radius:var(--radius-sm);font-size:.72rem;">
+           <span style="width:18px;height:18px;border-radius:50%;background:var(--brand-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0;">${i+1}</span>
+           <span style="font-weight:500;color:var(--gray-800);">${c.etiqueta}</span>
+           <span style="color:var(--gray-400);font-family:monospace;">${c.nombre_campo}</span>
+         </div>`
+      ).join('');
+    }
+  } catch(e) {}
+});
+
+// Auto-detectar plantilla
+document.getElementById('btnAutoDetectar')?.addEventListener('click', async function() {
+  if (!inputPdfs.files.length) return;
+  const spin = document.getElementById('spinnerAuto');
+  spin.style.display = 'inline-block'; this.disabled = true;
+  const fd = new FormData(); fd.append('pdf', inputPdfs.files[0]);
+  try {
+    const r = await fetch('/api/autodetectar', { method:'POST', body:fd });
+    const d = await r.json();
+    if (d.success) {
+      document.getElementById('selectPlantilla').value = d.plantilla_id;
+      document.getElementById('selectPlantilla').dispatchEvent(new Event('change'));
+      // Toast de confirmación
+      const t = document.createElement('div');
+      t.className = 'toast-modern success';
+      t.innerHTML = `<i class="bi bi-check-circle-fill toast-icon"></i><span>Plantilla detectada: <strong>${d.plantilla_nombre}</strong></span>`;
+      document.getElementById('toastContainer').appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+  } finally { spin.style.display='none'; this.disabled=false; }
+});
 
 document.getElementById('formExtraer')?.addEventListener('submit', function() {
-  const btn = document.getElementById('btnExtraer');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
+  btnExtraer.disabled = true;
+  btnExtraer.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
 });
 </script>
 {% endblock %}

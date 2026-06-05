@@ -225,9 +225,22 @@
             </div>
             <button type="submit" class="btn-primary-modern"><i class="bi bi-floppy"></i> Guardar SMTP</button>
           </form>
-        </div>
-      </div>
-    </div>
+          <!-- API Key -->
+          <div class="divider" style="margin:20px 0;"></div>
+          <div style="font-size:var(--font-size-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400);margin-bottom:8px;">API REST</div>
+          <form method="POST">
+            <input type="hidden" name="seccion" value="smtp">
+            <input type="hidden" name="smtp_server" value="{{ cfg.smtp_server }}">
+            <input type="hidden" name="smtp_port" value="{{ cfg.smtp_port }}">
+            <input type="hidden" name="email_user" value="{{ cfg.email_user }}">
+            <input type="hidden" name="email_nombre" value="{{ cfg.email_nombre }}">
+            <label class="form-label-modern">API Key (para integraciones externas)</label>
+            <div style="display:flex;gap:8px;">
+              <input type="text" name="api_key_display" class="form-control" value="{{ cfg.get('api_key','') }}" id="apiKeyField" style="font-family:var(--font-mono);font-size:.72rem;" readonly>
+              <button type="button" class="btn-ghost" onclick="generarApiKey()" style="white-space:nowrap;font-size:.72rem;padding:7px 12px;"><i class="bi bi-arrow-clockwise"></i> Generar</button>
+            </div>
+            <input type="hidden" name="api_key_value" id="apiKeyValue">
+          </form>
 
     <div class="col-lg-6">
       <div class="card-modern">
@@ -274,6 +287,13 @@
 
 {% block scripts %}
 <script>
+function generarApiKey() {
+  const key = Array.from(crypto.getRandomValues(new Uint8Array(24))).map(b=>b.toString(16).padStart(2,'0')).join('');
+  document.getElementById('apiKeyField').value = key;
+  document.getElementById('apiKeyValue').value = key;
+  document.getElementById('apiKeyField').closest('form').querySelector('[type=submit]')?.click();
+}
+
 function showTab(id) {
   document.querySelectorAll('.config-section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));

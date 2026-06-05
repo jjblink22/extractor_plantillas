@@ -161,6 +161,7 @@ def init_db():
         ('brand_primary',  '#0f2744'),
         ('brand_accent',   '#1c5fa5'),
         ('brand_highlight','#3b9eff'),
+        ('api_key',        ''),   # API REST — configurar en Configuración
     ]
     for clave, valor in config_defaults:
         try:
@@ -243,8 +244,21 @@ def logout():
 @login_required()
 def index():
     plantillas = db_query("SELECT * FROM plantillas WHERE activa=true ORDER BY nombre", fetchall=True) or []
-    total_extracciones = (db_query("SELECT COUNT(*) as n FROM extracciones", fetchone=True) or {}).get('n', 0)
-    return render_template('index.html', plantillas=plantillas, total_extracciones=total_extracciones)
+    stats = db_query("""
+        SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN estado='exitoso' THEN 1 ELSE 0 END) as exitosos,
+            SUM(CASE WHEN estado='revisar' THEN 1 ELSE 0 END) as revisar,
+            SUM(CASE WHEN estado='error'   THEN 1 ELSE 0 END) as errores,
+            SUM(CASE WHEN fecha >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END) as esta_semana
+        FROM extracciones
+    """, fetchone=True) or {}
+    ultimas = db_query("""
+        SELECT e.archivo_nombre, e.estado, e.fecha, p.nombre as plantilla_nombre
+        FROM extracciones e LEFT JOIN plantillas p ON p.id = e.plantilla_id
+        ORDER BY e.fecha DESC LIMIT 5
+    """, fetchall=True) or []
+    return render_template('index.html', plantillas=plantillas, stats=stats, ultimas=ultimas)
 
 # ── Plantillas ───────────────────────────────────────────────────────────────
 @app.route('/plantillas')
@@ -511,6 +525,8 @@ def configuracion():
             set_config('email_nombre', request.form.get('email_nombre','').strip())
             if request.form.get('email_pass','').strip():
                 set_config('email_pass', request.form.get('email_pass').strip())
+            if request.form.get('api_key_value','').strip():
+                set_config('api_key', request.form.get('api_key_value').strip())
             flash('Configuración SMTP guardada.', 'success')
 
         elif seccion == 'marca':
@@ -557,9 +573,15 @@ def configuracion():
 @app.route('/usuarios')
 @login_required(roles=['admin'])
 def admin_usuarios():
-    usuarios = db_query(
-        "SELECT id, username, COALESCE(nombre, nombre_completo, username) as nombre, rol, creado FROM usuarios ORDER BY nombre",
-        fetchall=True) or []
+    # Query segura compatible con ambas versiones del schema
+    usuarios = db_query("""
+        SELECT id, username,
+               COALESCE(nombre_completo, nombre, username) as nombre,
+               COALESCE(email, '') as email,
+               rol,
+               creado
+        FROM usuarios ORDER BY COALESCE(nombre_completo, nombre, username)
+    """, fetchall=True) or []
     return render_template('admin_usuarios.html', usuarios=usuarios)
 
 @app.route('/usuarios/crear', methods=['POST'])
@@ -647,13 +669,247 @@ def probar_correo():
 @app.route('/historial')
 @login_required()
 def historial():
-    filas = db_query("""
+    plantilla_id = request.args.get('plantilla_id','')
+    estado       = request.args.get('estado','')
+    busqueda     = request.args.get('q','')
+
+    filtros = ["1=1"]
+    params  = []
+    if plantilla_id:
+        filtros.append("e.plantilla_id=%s"); params.append(plantilla_id)
+    if estado:
+        filtros.append("e.estado=%s"); params.append(estado)
+    if busqueda:
+        filtros.append("e.archivo_nombre ILIKE %s"); params.append(f'%{busqueda}%')
+
+    filas = db_query(f"""
         SELECT e.*, p.nombre as plantilla_nombre
         FROM extracciones e
         LEFT JOIN plantillas p ON p.id = e.plantilla_id
-        ORDER BY e.fecha DESC LIMIT 200
-    """, fetchall=True) or []
-    return render_template('historial.html', extracciones=filas)
+        WHERE {' AND '.join(filtros)}
+        ORDER BY e.fecha DESC LIMIT 300
+    """, params or None, fetchall=True) or []
+
+    plantillas = db_query("SELECT id,nombre FROM plantillas ORDER BY nombre", fetchall=True) or []
+    return render_template('historial.html', extracciones=filas,
+                           plantillas=plantillas, filtros={'plantilla_id':plantilla_id,'estado':estado,'q':busqueda})
+
+
+# ── Duplicar plantilla ─────────────────────────────────────────────────────
+@app.route('/plantillas/<int:plantilla_id>/duplicar', methods=['POST'])
+@login_required()
+def duplicar_plantilla(plantilla_id):
+    orig = db_query("SELECT * FROM plantillas WHERE id=%s", (plantilla_id,), fetchone=True)
+    if not orig:
+        flash('Plantilla no encontrada.', 'danger')
+        return redirect(url_for('lista_plantillas'))
+    nueva = db_query("""
+        INSERT INTO plantillas (nombre, descripcion, tipo_documento)
+        VALUES (%s,%s,%s) RETURNING id
+    """, (f"{orig['nombre']} (copia)", orig['descripcion'], orig['tipo_documento']),
+        fetchone=True, commit=True)
+    if nueva:
+        campos = db_query("SELECT * FROM plantilla_campos WHERE plantilla_id=%s ORDER BY orden",
+                          (plantilla_id,), fetchall=True) or []
+        for c in campos:
+            db_query("""INSERT INTO plantilla_campos
+                (plantilla_id,nombre_campo,etiqueta,tipo_campo,pagina,x0,y0,x1,y1,
+                 es_tabla,patron_validacion,post_proceso,orden)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (nueva['id'],c['nombre_campo'],c['etiqueta'],c['tipo_campo'],
+                 c['pagina'],c['x0'],c['y0'],c['x1'],c['y1'],
+                 c['es_tabla'],c['patron_validacion'],c['post_proceso'],c['orden']),
+                commit=True)
+        flash(f'Plantilla duplicada como "{orig["nombre"]} (copia)".', 'success')
+        return redirect(url_for('editor_plantilla', plantilla_id=nueva['id']))
+    flash('Error al duplicar.', 'danger')
+    return redirect(url_for('lista_plantillas'))
+
+
+# ── Exportar historial a Excel con orden personalizado ─────────────────────
+@app.route('/historial/exportar')
+@login_required()
+def exportar_historial():
+    import io
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        flash('Instala openpyxl: pip install openpyxl', 'danger')
+        return redirect(url_for('historial'))
+
+    plantilla_id = request.args.get('plantilla_id')
+    estado       = request.args.get('estado','')
+
+    filtros = ["1=1"]; params = []
+    if plantilla_id:
+        filtros.append("e.plantilla_id=%s"); params.append(plantilla_id)
+    if estado:
+        filtros.append("e.estado=%s"); params.append(estado)
+
+    filas = db_query(f"""
+        SELECT e.*, p.nombre as plantilla_nombre
+        FROM extracciones e LEFT JOIN plantillas p ON p.id = e.plantilla_id
+        WHERE {' AND '.join(filtros)} ORDER BY e.fecha DESC LIMIT 5000
+    """, params or None, fetchall=True) or []
+
+    # Obtener orden de campos de la plantilla si se filtra por una
+    orden_campos = []
+    if plantilla_id:
+        campos = db_query("""SELECT nombre_campo, etiqueta FROM plantilla_campos
+                             WHERE plantilla_id=%s ORDER BY orden""",
+                          (plantilla_id,), fetchall=True) or []
+        orden_campos = [(c['nombre_campo'], c['etiqueta']) for c in campos]
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Extracciones'
+
+    # Estilo cabecera
+    hdr_fill = PatternFill("solid", fgColor="0F2744")
+    hdr_font = Font(bold=True, color="FFFFFF", size=10)
+    hdr_aln  = Alignment(horizontal="center", vertical="center")
+
+    # Columnas base
+    base_cols = ['Fecha', 'Archivo', 'Plantilla', 'Estado', 'Usuario']
+    # Columnas de datos en el orden definido por la plantilla
+    data_cols  = [etiqueta for _, etiqueta in orden_campos] if orden_campos else []
+    data_keys  = [key for key, _ in orden_campos] if orden_campos else []
+
+    all_cols = base_cols + data_cols
+    ws.append(all_cols)
+
+    for cell in ws[1]:
+        cell.fill = hdr_fill
+        cell.font = hdr_font
+        cell.alignment = hdr_aln
+
+    # Filas de datos
+    for fila in filas:
+        datos = fila.get('datos') or {}
+        if isinstance(datos, str):
+            import json as _json
+            try: datos = _json.loads(datos)
+            except: datos = {}
+        row = [
+            fila['fecha'].strftime('%d/%m/%Y %H:%M') if fila.get('fecha') else '',
+            fila.get('archivo_nombre',''),
+            fila.get('plantilla_nombre',''),
+            fila.get('estado',''),
+            fila.get('usuario_nombre',''),
+        ]
+        # Agregar campos en el orden de la plantilla
+        if data_keys:
+            for key in data_keys:
+                row.append(datos.get(key,''))
+        else:
+            # Sin plantilla específica: agregar todos los campos del JSON
+            for k,v in datos.items():
+                if k not in data_keys:
+                    row.append(f"{k}: {v}")
+        ws.append(row)
+
+    # Ajustar anchos
+    for col in ws.columns:
+        max_w = max((len(str(c.value or '')) for c in col), default=10)
+        ws.column_dimensions[col[0].column_letter].width = min(max_w + 4, 50)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    from flask import send_file as _sf
+    return _sf(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+               as_attachment=True, download_name='extracciones.xlsx')
+
+
+# ── Reprocesar extracción ──────────────────────────────────────────────────
+@app.route('/historial/<int:extraccion_id>/reprocesar', methods=['POST'])
+@login_required()
+def reprocesar_extraccion(extraccion_id):
+    ext = db_query("SELECT * FROM extracciones WHERE id=%s", (extraccion_id,), fetchone=True)
+    if not ext:
+        return jsonify(success=False, message='Extracción no encontrada.')
+    # Guardar PDF temporalmente si está disponible
+    flash('Para reprocesar sube nuevamente el PDF en la sección Extraer.', 'info')
+    return redirect(url_for('extraer', plantilla_id=ext['plantilla_id']))
+
+
+# ── Auto-detectar plantilla desde PDF ────────────────────────────────────
+@app.route('/api/campos_plantilla/<int:plantilla_id>')
+@login_required()
+def api_campos_plantilla(plantilla_id):
+    campos = db_query("""SELECT nombre_campo, etiqueta, tipo_campo, orden
+                         FROM plantilla_campos WHERE plantilla_id=%s ORDER BY orden""",
+                      (plantilla_id,), fetchall=True) or []
+    return jsonify(campos=[dict(c) for c in campos])
+
+
+@app.route('/api/autodetectar', methods=['POST'])
+@login_required()
+def autodetectar_plantilla():
+    """Analiza un PDF y sugiere la plantilla más probable."""
+    archivo = request.files.get('pdf')
+    if not archivo:
+        return jsonify(success=False)
+    path = os.path.join(UPLOAD_FOLDER, secure_filename(archivo.filename))
+    archivo.save(path)
+    try:
+        with pdfplumber.open(path) as pdf:
+            texto = ' '.join(
+                (pdf.pages[i].extract_text() or '') for i in range(min(2, len(pdf.pages)))
+            ).lower()
+
+        plantillas = db_query("""
+            SELECT id, nombre, descripcion, tipo_documento FROM plantillas WHERE activa=true
+        """, fetchall=True) or []
+
+        mejor = None; mejor_score = 0
+        for p in plantillas:
+            keywords = (p['nombre'] + ' ' + (p['descripcion'] or '') + ' ' + p['tipo_documento']).lower()
+            score = sum(1 for w in keywords.split() if len(w)>3 and w in texto)
+            if score > mejor_score:
+                mejor_score = score; mejor = p
+
+        os.remove(path)
+        if mejor and mejor_score > 0:
+            return jsonify(success=True, plantilla_id=mejor['id'],
+                           plantilla_nombre=mejor['nombre'], score=mejor_score)
+        return jsonify(success=False, message='No se encontró plantilla compatible.')
+    except Exception as e:
+        if os.path.exists(path): os.remove(path)
+        return jsonify(success=False, message=str(e))
+
+
+# ── API REST pública ───────────────────────────────────────────────────────
+@app.route('/api/v1/extraer', methods=['POST'])
+def api_extraer():
+    """
+    API REST para extracción desde sistemas externos.
+    Headers: X-API-Key: <clave>
+    Body: multipart/form-data con 'pdf' y 'plantilla_id'
+    """
+    api_key = request.headers.get('X-API-Key','')
+    key_valida = get_config('api_key','')
+    if not key_valida or api_key != key_valida:
+        return jsonify(error='API key inválida o no configurada.'), 401
+
+    archivo = request.files.get('pdf')
+    plantilla_id = request.form.get('plantilla_id')
+    if not archivo or not plantilla_id:
+        return jsonify(error='Parámetros requeridos: pdf, plantilla_id'), 400
+
+    path = os.path.join(UPLOAD_FOLDER, secure_filename(archivo.filename))
+    archivo.save(path)
+    try:
+        datos, confianza = aplicar_plantilla(path, int(plantilla_id))
+        os.remove(path)
+        return jsonify(success=True, datos=datos, confianza=confianza,
+                       archivo=archivo.filename)
+    except Exception as e:
+        if os.path.exists(path): os.remove(path)
+        return jsonify(error=str(e)), 500
+
 
 # ── API: extraer coordenadas de texto del PDF ─────────────────────────────
 @app.route('/api/palabras_pdf', methods=['POST'])
@@ -671,14 +927,11 @@ def palabras_pdf():
         if pagina_num <= len(pdf.pages):
             page = pdf.pages[pagina_num - 1]
             for w in (page.extract_words() or []):
-                palabras.append({
-                    'texto': w['text'],
+                palabras.append({'texto': w['text'],
                     'x0': w['x0'], 'y0': w['top'],
-                    'x1': w['x1'], 'y1': w['bottom'],
-                })
+                    'x1': w['x1'], 'y1': w['bottom']})
     return jsonify(success=True, palabras=palabras,
-                   ancho=float(pdf.pages[0].width),
-                   alto=float(pdf.pages[0].height))
+                   ancho=float(pdf.pages[0].width), alto=float(pdf.pages[0].height))
 
 if __name__ == '__main__':
     init_db()
