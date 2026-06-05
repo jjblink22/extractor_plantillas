@@ -39,7 +39,7 @@
 
 {% block content %}
 <div class="d-flex align-items-center gap-3 mb-3">
-    <a href="{{ url_for('lista_plantillas_ext') }}" class="btn btn-outline-secondary btn-sm">
+    <a href="{{ url_for('lista_plantillas') }}" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-left"></i>
     </a>
     <div>
@@ -163,13 +163,6 @@
                         <option value="rif">RIF venezolano</option>
                     </select>
                 </div>
-                <div class="mb-2 form-check">
-                    <input type="checkbox" class="form-check-input" id="campoEsTabla">
-                    <label class="form-check-label" for="campoEsTabla" style="font-size:0.82rem;">
-                        <strong>Zona de tabla</strong> — extrae múltiples filas
-                    </label>
-                    <div class="form-text">Usa esto cuando la zona contiene una tabla con varias filas (ej: detalle de facturas)</div>
-                </div>
                 <div class="mb-2">
                     <label class="form-label">Regex de validación (opcional)</label>
                     <input type="text" class="form-control form-control-sm" id="campoPatron" placeholder="Ej: [\d\-]+">
@@ -228,7 +221,7 @@ const selDiv      = document.getElementById('seleccionActual');
 
 // ── Cargar PDF existente ──────────────────────────────────────────────────
 {% if plantilla.muestra_path %}
-cargarPdfDesdeUrl("{{ url_for('ver_muestra_pdf_ext', plantilla_id=plantilla.id) }}");
+cargarPdfDesdeUrl("{{ url_for('ver_muestra_pdf', plantilla_id=plantilla.id) }}");
 {% endif %}
 
 // ── Subir nuevo PDF ───────────────────────────────────────────────────────
@@ -237,7 +230,7 @@ document.getElementById('inputPdfMuestra').addEventListener('change', async func
     const fd = new FormData();
     fd.append('pdf_muestra', this.files[0]);
     document.getElementById('labelPdfMuestra').textContent = 'Subiendo...';
-    const r = await fetch("{{ url_for('subir_muestra_ext', plantilla_id=plantilla.id) }}", {method:'POST',body:fd});
+    const r = await fetch("{{ url_for('subir_muestra', plantilla_id=plantilla.id) }}", {method:'POST',body:fd});
     const d = await r.json();
     if (d.success) {
         document.getElementById('labelPdfMuestra').textContent = 'PDF cargado ✓ — clic para cambiar';
@@ -345,7 +338,7 @@ async function previewZona(x0, y0, x1, y1, pagina) {
     previewEl.textContent = 'Extrayendo...';
     previewEl.style.color = '#8a99a8';
     try {
-        const r = await fetch(`/extractor/plantillas/${PLANTILLA_ID}/preview_zona`, {
+        const r = await fetch(`/plantillas/${PLANTILLA_ID}/preview_zona`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({x0, y0, x1, y1, pagina})
@@ -437,12 +430,11 @@ document.getElementById('btnGuardarCampo').addEventListener('click', async () =>
         id: campoEditandoId,
         etiqueta, nombre_campo: nombre,
         tipo_campo: document.getElementById('campoTipo').value,
-        es_tabla:   document.getElementById('campoEsTabla').checked,
         patron_validacion: document.getElementById('campoPatron').value,
         pagina: paginaActual,
         ...zonaActual
     };
-    const r = await fetch(`/extractor/plantillas/${PLANTILLA_ID}/campos`, {
+    const r = await fetch(`/plantillas/${PLANTILLA_ID}/campos`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body:JSON.stringify(payload)
     });
@@ -477,7 +469,7 @@ document.getElementById('listaCampos').addEventListener('click', async e => {
     if (!btn) return;
     e.stopPropagation();
     const id = parseInt(btn.dataset.id);
-    await fetch(`/extractor/plantillas/${PLANTILLA_ID}/campos/${id}`, {method:'DELETE'});
+    await fetch(`/plantillas/${PLANTILLA_ID}/campos/${id}`, {method:'DELETE'});
     delete camposData[id];
     actualizarListaCampos();
     dibujarZonas();
@@ -517,7 +509,7 @@ document.getElementById('btnPrevisualizar').addEventListener('click', async () =
     const btn = document.getElementById('btnPrevisualizar');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Procesando...';
-    const r = await fetch(`/extractor/plantillas/${PLANTILLA_ID}/previsualizar`, {method:'POST'});
+    const r = await fetch(`/plantillas/${PLANTILLA_ID}/previsualizar`, {method:'POST'});
     const d = await r.json();
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-play-circle me-1"></i>Probar plantilla';
